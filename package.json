@@ -1,0 +1,25 @@
+{
+  "name": "kitty-event-bus-client",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KITTY EVENT BUS CLIENT — Feline CNCF CloudEvents NATS Consumer & Vocalizer built with Vue 3 + Vite",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0"
+  }
+}

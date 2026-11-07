@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-serif: "Cormorant Garamond", "Noto Serif JP", serif;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-gallery-light: #f5f4ef;
+  --color-gallery-lightPaper: #eceae3;
+  --color-gallery-dark: #121213;
+  --color-gallery-darkPaper: #1a1a1c;
+}
+
+/* Gallery fine tuning */
+body {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Fine subtle film grain overlay */
+.film-grain {
+  background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+.dark .film-grain {
+  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+/* Viewport-fit layout:
+   The page is exactly one viewport tall. Header and footer take what
+   they need; the kitty canvas is the largest square that fits in the space
+   left over (container query units on .app-main). */
+body.app {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "header" "main" "footer";
+  overflow: hidden;
+}
+.app-header {
+  grid-area: header;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+.app-main {
+  grid-area: main;
+  min-height: 0;
+  container-type: size;
+}
+.clock-frame {
+  --clock-max: 560px;
+  width: min(100cqw, 100cqh, var(--clock-max));
+  aspect-ratio: 1 / 1;
+}
+@media (min-width: 1024px) and (min-height: 960px) {
+  .clock-frame { --clock-max: 720px; }
+}
+@media (min-width: 1600px) and (min-height: 1200px) {
+  .clock-frame { --clock-max: 900px; }
+}
+.app-footer {
+  grid-area: footer;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+#devModePanel { max-height: 24vh; overflow: auto; }
+
+/* Short screens: drop the decorative extras so the cat keeps its size. */
+@media (max-height: 700px) {
+  .legend, .app-subtitle { display: none !important; }
+}
+
+/* Landscape phones: cat on the left at full height, controls on the right. */
+@media (orientation: landscape) and (max-height: 540px) {
+  body.app {
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 44%);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "main header" "main footer";
+  }
+  .app-header { flex-wrap: wrap; gap: 0.4rem; padding-bottom: 0.35rem; }
+  .app-header h1 { font-size: 0.95rem; }
+  .app-header .jp-title { display: none !important; }
+  .app-main { padding: max(0.35rem, env(safe-area-inset-top)) 0.35rem max(0.35rem, env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left)); }
+  .app-footer { align-self: center; gap: 0.5rem; }
+}
+
+/* Touch devices: finger-sized tap targets. */
+@media (pointer: coarse) {
+  .tap { min-width: 40px; min-height: 40px; justify-content: center; }
+  .pill { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+}
