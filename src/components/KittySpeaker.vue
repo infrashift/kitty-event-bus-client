@@ -817,7 +817,7 @@ function drawCatEye(
   ctx.restore();
 
   const defineEyeAperture = (openRatio = 1) => {
-    const h = ry * Math.max(0.03, openRatio);
+    const h = ry * Math.max(0.02, openRatio);
     ctx.beginPath();
     ctx.moveTo(-rx * 1.05, 0);
     ctx.bezierCurveTo(-rx * 0.55, -h * 1.18, rx * 0.52, -h * 1.15, rx * 1.05, 0);
@@ -825,8 +825,14 @@ function drawCatEye(
     ctx.closePath();
   };
 
+  // Bionic eyelid aperture ratio:
+  // Even at rest (blink = 0), sleek metallic upper/lower bionic eyelid hoods frame the top & bottom of the socket;
+  // during a blink (blink -> 1), the articulated chrome shutters slide smoothly together to seal the eye.
+  const openRatio = Math.max(0.015, (1 - blink * 0.985) * 0.84);
+
+  // 1. Render the full eyeball clipped to the outer orbital socket
   ctx.save();
-  defineEyeAperture(1 - blink * 0.96);
+  defineEyeAperture(1.04);
   ctx.clip();
 
   const globeGrad = ctx.createRadialGradient(gazeX * 0.4, gazeY * 0.4, rx * 0.1, 0, 0, rx * 1.15);
@@ -907,12 +913,19 @@ function drawCatEye(
   ctx.restore();
   ctx.restore();
 
-  const lidShadow = ctx.createLinearGradient(0, -ry, 0, ry * 0.3);
-  lidShadow.addColorStop(0, 'rgba(0, 0, 0, 0.68)');
-  lidShadow.addColorStop(0.45, 'rgba(0, 0, 0, 0.12)');
+  // Cast shadow from the overhanging bionic upper eyelid onto the eyeball
+  const hUpperShadow = ry * openRatio * 1.16;
+  const lidShadow = ctx.createLinearGradient(0, -hUpperShadow, 0, -hUpperShadow + ry * 0.55);
+  lidShadow.addColorStop(0, 'rgba(0, 0, 0, 0.75)');
+  lidShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.18)');
   lidShadow.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = lidShadow;
   ctx.fillRect(-rx * 1.1, -ry * 1.1, rx * 2.2, ry * 2.2);
+
+  // Corneal catchlights (clipped to open aperture so the bionic lid covers them when blinking)
+  ctx.save();
+  defineEyeAperture(openRatio);
+  ctx.clip();
 
   ctx.save();
   ctx.translate(gx * 0.35 - rx * 0.24, gy * 0.35 - ry * 0.26);
@@ -931,34 +944,187 @@ function drawCatEye(
   ctx.beginPath();
   ctx.arc(gx * 0.25 + rx * 0.28, gy * 0.25 + ry * 0.24, rx * 0.065, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+
+  // 2. Shiny Bionic Metal Eyelids (Upper & Lower Articulated Chrome Shutters)
+  const hUpper = ry * openRatio * 1.18;
+  const hLower = ry * openRatio * 1.15;
+
+  const traceUpperLidShell = () => {
+    ctx.beginPath();
+    ctx.moveTo(-rx * 1.15, 0);
+    ctx.lineTo(-rx * 1.15, -ry * 1.35);
+    ctx.lineTo(rx * 1.15, -ry * 1.35);
+    ctx.lineTo(rx * 1.15, 0);
+    ctx.bezierCurveTo(rx * 0.52, -hUpper, -rx * 0.55, -hUpper, -rx * 1.15, 0);
+    ctx.closePath();
+  };
+
+  const traceLowerLidShell = () => {
+    ctx.beginPath();
+    ctx.moveTo(-rx * 1.15, 0);
+    ctx.lineTo(-rx * 1.15, ry * 1.35);
+    ctx.lineTo(rx * 1.15, ry * 1.35);
+    ctx.lineTo(rx * 1.15, 0);
+    ctx.bezierCurveTo(rx * 0.52, hLower, -rx * 0.55, hLower, -rx * 1.15, 0);
+    ctx.closePath();
+  };
+
+  // Multi-stop liquid-chrome & brushed-titanium gradient
+  const chromeGrad = ctx.createLinearGradient(-rx * 0.85, -ry * 1.18, rx * 0.75, ry * 1.18);
+  chromeGrad.addColorStop(0.0, '#141a22');
+  chromeGrad.addColorStop(0.15, '#5b6b7c');
+  chromeGrad.addColorStop(0.3, '#dde9f6');
+  chromeGrad.addColorStop(0.4, '#ffffff');
+  chromeGrad.addColorStop(0.52, '#7d8fa1');
+  chromeGrad.addColorStop(0.66, '#242e38');
+  chromeGrad.addColorStop(0.82, '#cad8e6');
+  chromeGrad.addColorStop(1.0, '#384554');
+
+  // Render Upper Bionic Eyelid Dome
+  ctx.save();
+  traceUpperLidShell();
+  ctx.fillStyle = chromeGrad;
+  ctx.fill();
+  ctx.clip();
+
+  // Convex 3D chrome specular hotspot on upper lid
+  const specY = -hUpper * 0.45 - ry * 0.32;
+  const upperSpec = ctx.createRadialGradient(
+    -rx * 0.22,
+    specY,
+    rx * 0.04,
+    -rx * 0.15,
+    specY,
+    rx * 0.78
+  );
+  upperSpec.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+  upperSpec.addColorStop(
+    0.35,
+    showOverlay ? 'rgba(255, 185, 120, 0.55)' : 'rgba(215, 238, 255, 0.58)'
+  );
+  upperSpec.addColorStop(0.7, 'rgba(120, 145, 170, 0.15)');
+  upperSpec.addColorStop(1, 'rgba(15, 22, 30, 0.45)');
+  ctx.fillStyle = upperSpec;
+  ctx.fillRect(-rx * 1.2, -ry * 1.3, rx * 2.4, ry * 1.5);
+
+  // Articulated telescopic titanium shutter seams on upper lid
+  for (const frac of [0.34, 0.62, 0.84]) {
+    const seamH = hUpper + (ry * 1.18 - hUpper) * frac;
+    ctx.beginPath();
+    ctx.moveTo(-rx * 1.06, 0);
+    ctx.bezierCurveTo(-rx * 0.55, -seamH, rx * 0.52, -seamH, rx * 1.06, 0);
+    ctx.strokeStyle = 'rgba(12, 18, 26, 0.78)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-rx * 1.06, 1.2);
+    ctx.bezierCurveTo(-rx * 0.55, -seamH + 1.5, rx * 0.52, -seamH + 1.5, rx * 1.06, 1.2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+    ctx.lineWidth = 1.0;
+    ctx.stroke();
+  }
+
+  // Bionic actuator segmentation lines & micro-rivets on upper lid
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(side * rx * 0.52, -ry * 1.2);
+    ctx.lineTo(side * rx * 0.38, -hUpper * 0.65);
+    ctx.strokeStyle = 'rgba(15, 22, 30, 0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+  for (const rxFrac of [-0.68, -0.35, 0, 0.35, 0.68]) {
+    const rvx = rx * rxFrac;
+    const archFactor = 1 - rxFrac * rxFrac * 0.75;
+    const rvy = -(hUpper + (ry * 1.12 - hUpper) * 0.48) * archFactor;
+    ctx.beginPath();
+    ctx.arc(rvx, rvy, 1.7, 0, Math.PI * 2);
+    ctx.fillStyle = '#18222c';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(rvx - 0.4, rvy - 0.4, 1.0, 0, Math.PI * 2);
+    ctx.fillStyle = '#f0f7ff';
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Render Lower Bionic Eyelid Plate
+  ctx.save();
+  traceLowerLidShell();
+  ctx.fillStyle = chromeGrad;
+  ctx.fill();
+  ctx.clip();
+
+  const lowerSpecY = hLower * 0.45 + ry * 0.28;
+  const lowerSpec = ctx.createRadialGradient(
+    rx * 0.18,
+    lowerSpecY,
+    rx * 0.04,
+    rx * 0.12,
+    lowerSpecY,
+    rx * 0.75
+  );
+  lowerSpec.addColorStop(0, 'rgba(255, 255, 255, 0.88)');
+  lowerSpec.addColorStop(0.4, 'rgba(200, 225, 248, 0.45)');
+  lowerSpec.addColorStop(1, 'rgba(18, 25, 34, 0.5)');
+  ctx.fillStyle = lowerSpec;
+  ctx.fillRect(-rx * 1.2, 0, rx * 2.4, ry * 1.35);
+
+  for (const frac of [0.42, 0.76]) {
+    const seamH = hLower + (ry * 1.15 - hLower) * frac;
+    ctx.beginPath();
+    ctx.moveTo(-rx * 1.06, 0);
+    ctx.bezierCurveTo(-rx * 0.55, seamH, rx * 0.52, seamH, rx * 1.06, 0);
+    ctx.strokeStyle = 'rgba(12, 18, 26, 0.72)';
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-rx * 1.06, -1.1);
+    ctx.bezierCurveTo(-rx * 0.55, seamH - 1.4, rx * 0.52, seamH - 1.4, rx * 1.06, -1.1);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 3. Precision-Machined Chrome Eyelid Margin Rim (Inner moving edge)
+  ctx.beginPath();
+  ctx.moveTo(-rx * 1.05, 0);
+  ctx.bezierCurveTo(-rx * 0.55, -hUpper, rx * 0.52, -hUpper, rx * 1.05, 0);
+  ctx.bezierCurveTo(rx * 0.52, hLower, -rx * 0.55, hLower, -rx * 1.05, 0);
+  ctx.closePath();
+  ctx.strokeStyle = '#0e141b';
+  ctx.lineWidth = 3.8;
+  ctx.stroke();
+
+  const rimBevelGrad = ctx.createLinearGradient(-rx, -ry * 0.8, rx, ry * 0.8);
+  rimBevelGrad.addColorStop(0, '#566678');
+  rimBevelGrad.addColorStop(0.28, '#ffffff');
+  rimBevelGrad.addColorStop(0.55, '#92a5b8');
+  rimBevelGrad.addColorStop(0.8, '#f0f7ff');
+  rimBevelGrad.addColorStop(1, '#435160');
+  ctx.strokeStyle = rimBevelGrad;
+  ctx.lineWidth = 2.1;
+  ctx.stroke();
 
   ctx.restore();
 
-  if (blink > 0.01) {
-    ctx.save();
-    defineEyeAperture(1);
-    ctx.clip();
+  // 4. Outer Orbital Bionic Housing Bezel Ring
+  defineEyeAperture(1.04);
+  ctx.strokeStyle = '#11161d';
+  ctx.lineWidth = 3.6;
+  ctx.stroke();
 
-    const lidMeetY = (blink - 0.5) * ry * 0.25;
-    const lidGrad = ctx.createLinearGradient(0, -ry * 1.2, 0, ry * 1.2);
-    lidGrad.addColorStop(0, subj.skinShadow || '#3e332a');
-    lidGrad.addColorStop(0.5, subj.skinSample || '#786858');
-    lidGrad.addColorStop(1, subj.skinShadow || '#3e332a');
-    ctx.fillStyle = lidGrad;
-
-    ctx.beginPath();
-    ctx.rect(-rx * 1.2, -ry * 1.3, rx * 2.4, ry * 1.3 + lidMeetY + ry * (1 - blink) * 0.1);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.rect(-rx * 1.2, ry * (1 - blink * 0.85), rx * 2.4, ry * 1.3);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  defineEyeAperture(1 - blink * 0.96);
-  ctx.strokeStyle = '#14110f';
-  ctx.lineWidth = 3.2;
+  const outerBezelGrad = ctx.createLinearGradient(-rx, -ry, rx, ry);
+  outerBezelGrad.addColorStop(0, '#78899b');
+  outerBezelGrad.addColorStop(0.35, '#f5faff');
+  outerBezelGrad.addColorStop(0.65, '#3b4754');
+  outerBezelGrad.addColorStop(1, '#c5d4e3');
+  ctx.strokeStyle = outerBezelGrad;
+  ctx.lineWidth = 1.6;
   ctx.stroke();
 
   ctx.restore();
