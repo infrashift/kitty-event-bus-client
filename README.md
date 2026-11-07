@@ -11,7 +11,7 @@
 [![Monty Python Physics](https://img.shields.io/badge/Jaw_Hinge-Terry_Gilliam_Certified-orange.svg?style=flat-square)](#key-features--cloud-native-breakthroughs)
 [![Deploy](https://github.com/infrashift/kitty-event-bus-client/actions/workflows/deploy.yml/badge.svg)](https://github.com/infrashift/kitty-event-bus-client/actions/workflows/deploy.yml)
 
-### 🌐 [Launch the NATS Kitty Speaker](https://infrashift.github.io/kitty-event-bus-client/) · [Sister Project: PATIENCE](https://github.com/infrashift/patience) · [Infrashift.io](https://infrashift.io)
+### 🌐 [Launch the NATS Kitty Speaker](https://infrashift.github.io/kitty-event-bus-client/) · [Changelog](CHANGELOG.md) · [Sister Project: PATIENCE](https://github.com/infrashift/patience) · [Infrashift.io](https://infrashift.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT_(Meow_In_Transit)-yellow.svg?style=flat-square)](#license)
 
 </div>
