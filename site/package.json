@@ -1,0 +1,27 @@
+{
+  "name": "kitty-site",
+  "type": "module",
+  "version": "1.5.0",
+  "private": true,
+  "description": "KITTY, CloudEvent NATS Speaker — project site built with Astro + Starlight. Hosts the kitty-event-bus-client package as a Vue island.",
+  "scripts": {
+    "sync-kitty": "bun scripts/sync-kitty.ts",
+    "dev": "bun scripts/sync-kitty.ts && astro dev",
+    "build": "bun scripts/sync-kitty.ts && astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.9",
+    "@astrojs/vue": "^7.1.2",
+    "@nats-io/nats-core": "^3.4.0",
+    "astro": "^7.4.7",
+    "kitty-event-bus-client": "workspace:*",
+    "sharp": "^0.35.5",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}

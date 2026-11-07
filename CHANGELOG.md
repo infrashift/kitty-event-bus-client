@@ -12,6 +12,22 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.5.0`] — 2026-11-06 — *The Island Annexation & Live Bus Liberation Act*
+
+### ✨ Added
+- **Astro + Starlight Docs Site ([`site/`](site/)):** KITTY now has a proper home at [infrashift.github.io/kitty-event-bus-client](https://infrashift.github.io/kitty-event-bus-client/) with Features, Guides, Contributing, Sponsor and License pages, modeled on sister project PATIENCE. The cat lives full-screen at [`/speaker/`](https://infrashift.github.io/kitty-event-bus-client/speaker/) as a `client:only="vue"` **Astro island**, which is the first island in history to be inhabited exclusively by a screaming tabby.
+- **Live NATS Support (`natsConnectionBus`, `decodeNatsCloudEvent`):** `<KittyApp>` takes a pluggable `bus` and `subject`. Point it at a real NATS server over WebSocket (`/speaker/?nats=ws://localhost:8080`) and the cat reads your production CloudEvents in both structured (JSON envelope) and binary (`ce-*` header) modes. Your on-call rotation has been notified and is weeping.
+- **`make nats` / `make nats-box` / `make nats-publish`:** A local NATS server with WebSocket enabled, run with **Podman** (default) or Docker, plus the `nats` CLI and a sample CloudEvent publisher. See [Connect to a live NATS server](https://infrashift.github.io/kitty-event-bus-client/guides/live-nats/).
+- **Installable Package ([`kitty/`](kitty/)):** The app is now the `kitty-event-bus-client` package, built independently of the site: an ES module library (`vue` as a peer dependency), a standalone `<script>` drop-in (`window.KittyEventBus`), typed declarations, the TTS MP3s, and `kittyTtsProxy()` for Vite. Publish-ready, not yet published, because npm hasn't finished its risk assessment.
+
+### 🔄 Changed
+- **Bun Workspace Split:** `src/`, `public/` and `tests/` moved to `kitty/`. The site consumes the package only through its public `exports`, so anything the site can do, you can do too.
+- **Scoped Styles:** KITTY no longer ships Tailwind's global preflight. Its reset applies inside `.kitty-app` only, so embedding the cat won't restyle your page. `body.app` became `.kitty-app`, sized by `--kitty-height`.
+- **Configurable TTS Endpoints:** `ttsBaseUrl` and `ttsProxyUrl` replace the hard-coded `./tts/` and `./api/tts`, so the cat finds its voice under any base path.
+- **CI:** The pipeline tests the package and the site separately, runs the live NATS end-to-end tests against a real `nats-server`, and deploys `site/dist/` to GitHub Pages.
+
+---
+
 ## [`1.4.0`] — 2026-11-06 — *The Kiwi Default Decree & Static Neural Audio Bundle*
 
 ### 🔄 Changed
