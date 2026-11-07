@@ -20,10 +20,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - **`make nats` / `make nats-box` / `make nats-publish`:** A local NATS server with WebSocket enabled, run with **Podman** (default) or Docker, plus the `nats` CLI and a sample CloudEvent publisher. See [Connect to a live NATS server](https://infrashift.github.io/kitty-event-bus-client/guides/live-nats/).
 - **Installable Package ([`kitty/`](kitty/)):** The app is now the `kitty-event-bus-client` package, built independently of the site: an ES module library (`vue` as a peer dependency), a standalone `<script>` drop-in (`window.KittyEventBus`), typed declarations, the TTS MP3s, and `kittyTtsProxy()` for Vite. Publish-ready, not yet published, because npm hasn't finished its risk assessment.
 
+### 🐛 Fixed
+- **The Silent Welcome (Autoplay Gate):** On first load the cat used to "read" the welcome CloudEvent with its jaw flapping and no voice, because browsers suspend the `AudioContext` and block Web Speech until a user gesture. KITTY now holds the newest event, shows *🔈 Tap anywhere to hear KITTY*, unlocks audio on the first tap, click or key press, and then speaks it properly. A newer event that arrives while waiting replaces the queued one.
+- **Sponsor Link:** "Become a GitHub Sponsor" now goes to [Infrashift.io on GitHub Sponsors](https://github.com/sponsors/infrashift) instead of the generic Sponsors landing page, and the repo has a `FUNDING.yml`.
+
 ### 🔄 Changed
 - **Bun Workspace Split:** `src/`, `public/` and `tests/` moved to `kitty/`. The site consumes the package only through its public `exports`, so anything the site can do, you can do too.
 - **Scoped Styles:** KITTY no longer ships Tailwind's global preflight. Its reset applies inside `.kitty-app` only, so embedding the cat won't restyle your page. `body.app` became `.kitty-app`, sized by `--kitty-height`.
-- **Configurable TTS Endpoints:** `ttsBaseUrl` and `ttsProxyUrl` replace the hard-coded `./tts/` and `./api/tts`, so the cat finds its voice under any base path.
+- **Configurable TTS Endpoints:** `ttsBaseUrl` and `ttsProxyUrl` replace the hard-coded `./tts/` and `./api/tts`, so the cat finds its voice under any base path. The live proxy is now opt-in (`null` by default), so static hosts stop asking a nonexistent `/api/tts`.
+- **Read-Only Live Buses (`allowPublish`):** A live NATS bus no longer shows the Send / Critical Alert / AUTO buttons unless you opt in (`&publish=1`). When enabled, demo presets publish *inside* your subscribed subject instead of `cncf.*`, so fake GPU meltdowns never page a real on-call engineer.
+- **`pageTheme`:** Embedded KITTY can keep its dark mode to itself (`pageTheme: false`) instead of redecorating the host page's `<html>`.
+- **Dedicated Test Ports:** Playwright now serves kitty on `:4331` and the site on `:4332`, so tests no longer collide with a dev or preview server on `:4321`/`:4322`.
 - **CI:** The pipeline tests the package and the site separately, runs the live NATS end-to-end tests against a real `nats-server`, and deploys `site/dist/` to GitHub Pages.
 
 ---

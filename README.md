@@ -150,7 +150,7 @@ Streaming CNCF CloudEvents into a procedurally animated paper-cutout cat jaw is 
 | ⚡ **The JetStream Laser Tier** | `$100 / mo` | Your custom NATS subject (`io.yourcompany.chaos.critical`) is added to the built-in preset catalog with bespoke ocular plasma particle colors. |
 | 🏢 **Enterprise NOC Wall Mount** | `$10,000 / mo` | Our engineering team flies to your NOC, hooks `kitty-event-bus-client` up to your production Kubernetes cluster, and explains to your CISO why a screaming Kiwi cat is SOC2 compliant. |
 
-👉 **[Become a GitHub Sponsor](https://github.com/sponsors)** or visit **[Infrashift.io](https://infrashift.io)** to inquire about enterprise licensing.
+👉 **[Become a GitHub Sponsor](https://github.com/sponsors/infrashift)** or visit **[Infrashift.io](https://infrashift.io)** to inquire about enterprise licensing.
 
 ---
 

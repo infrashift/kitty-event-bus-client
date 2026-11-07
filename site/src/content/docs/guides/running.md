@@ -5,7 +5,7 @@ description: Open KITTY in a browser, on a phone or tablet, or on your NOC wall.
 
 ## In your browser
 
-The hosted speaker lives at **[infrashift.github.io/kitty-event-bus-client/speaker/](https://infrashift.github.io/kitty-event-bus-client/speaker/)**. Click anywhere on the cat (or **⚡ Send CloudEvent**) to wake the audio engine. Browsers only allow sound after a user gesture. Use the ⛶ button for fullscreen.
+The hosted speaker lives at **[infrashift.github.io/kitty-event-bus-client/speaker/](https://infrashift.github.io/kitty-event-bus-client/speaker/)**. Browsers only allow sound after you interact with the page. Until then, KITTY holds the newest event and shows **🔈 Tap anywhere to hear KITTY**. The first tap, click or key press anywhere unlocks audio, and the waiting event is spoken right away, voice included. Use the ⛶ button for fullscreen.
 
 On first load KITTY publishes a welcome `cncf.k8s.pods.ready` event so the speech bubble and inspector start populated.
 

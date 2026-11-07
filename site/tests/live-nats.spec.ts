@@ -28,8 +28,10 @@ test.describe('live NATS', () => {
     await page.goto(`speaker/?nats=${encodeURIComponent(NATS_WS_URL!)}&subject=${prefix}.>`);
     await expect(page.locator('#natsStatus')).toContainText('Live NATS');
     await expect(page.locator('#natsStatus')).toHaveAttribute('data-ok', 'true');
-    // A live bus gets no unprompted welcome event.
+    // A live bus gets no unprompted welcome event, and is read-only unless &publish=1.
     await expect(page.locator('#eventCountBadge')).toHaveText('0');
+    await expect(page.locator('#sendEventBtn')).toHaveCount(0);
+    await expect(page.locator('#listeningLabel')).toContainText(`${prefix}.>`);
 
     // Structured mode: the JSON payload is the whole CloudEvent.
     nc.publish(
@@ -65,22 +67,50 @@ test.describe('live NATS', () => {
     await page.waitForTimeout(500);
     await expect(page.locator('#eventCountBadge')).toHaveText('2');
 
-    // The inspector shows the live envelope and says it's a live bus.
+    // The inspector shows the live envelope and says it's a live bus, with no publisher.
     await page.locator('#inspectorBtn').click();
     await expect(page.locator('#inspectorSubject')).toHaveText(`${prefix}.>`);
     await expect(page.locator('#inspectorBusKind')).toHaveText('live NATS');
     await expect(page.getByTestId('inspector-drawer')).toContainText('"type": "io.e2e.binary"');
+    await expect(page.locator('#publishCustomBtn')).toHaveCount(0);
   });
 
-  test('the Send CloudEvent button publishes to the live server', async ({ page }, info) => {
+  test('decodes UTF-8 data_base64 and speaks non-object payloads as sent', async ({ page }, info) => {
+    test.skip(info.project.name !== 'desktop', 'decoder checks only need to run once');
+    const prefix = `kittye2edecode${Date.now()}`;
+    await page.goto(`speaker/?nats=${encodeURIComponent(NATS_WS_URL!)}&subject=${prefix}.>`);
+    await expect(page.locator('#natsStatus')).toHaveAttribute('data-ok', 'true');
+
+    const json = JSON.stringify({ message: 'Température critique — 96°C', severity: 'info' });
+    nc.publish(
+      `${prefix}.b64`,
+      JSON.stringify({
+        specversion: '1.0', id: 'b64', source: 'urn:e2e', type: 'io.e2e.base64',
+        data_base64: Buffer.from(json, 'utf8').toString('base64'),
+      }),
+    );
+    await expect(page.locator('#activeEventType')).toHaveText('io.e2e.base64');
+    await expect(page.getByTestId('bubble-chunk-text')).toContainText('Température');
+
+    // A bare JSON number is spoken as the number, not replaced by a fallback.
+    nc.publish(`${prefix}.temp`, '96');
+    await expect(page.locator('#activeEventType')).toHaveText('io.nats.message');
+    await page.locator('#inspectorBtn').click();
+    await expect(page.getByTestId('inspector-drawer')).toContainText('"message": "96"');
+  });
+
+  test('with &publish=1 the demo buttons publish inside the subscribed subject', async ({ page }, info) => {
     test.skip(info.project.name !== 'desktop', 'publish round-trip only needs to run once');
+    const prefix = `kittye2epub${Date.now()}`;
     const received: string[] = [];
-    const sub = nc.subscribe('cncf.>', { callback: (_e, m) => received.push(m.subject) });
-    await page.goto(`speaker/?nats=${encodeURIComponent(NATS_WS_URL!)}`);
+    const sub = nc.subscribe('>', { callback: (_e, m) => received.push(m.subject) });
+    await page.goto(`speaker/?nats=${encodeURIComponent(NATS_WS_URL!)}&subject=${prefix}.>&publish=1`);
     await expect(page.locator('#natsStatus')).toHaveAttribute('data-ok', 'true');
     await page.locator('#sendAlertBtn').click();
-    await expect.poll(() => received).toContain('cncf.alerts.gpu.thermal');
-    // …and KITTY, subscribed to cncf.>, hears it back from the server.
+    // The preset's cncf.alerts.gpu.thermal is mapped under the subscription, never to cncf.*
+    await expect.poll(() => received).toContain(`${prefix}.alerts.gpu.thermal`);
+    expect(received.some((s) => s.startsWith('cncf.'))).toBe(false);
+    // …and KITTY hears it back from the server.
     await expect(page.locator('#activeEventType')).toHaveText('io.infrashift.gpu.thermal.critical');
     sub.unsubscribe();
   });

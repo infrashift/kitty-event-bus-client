@@ -117,7 +117,7 @@ export function decodeNatsCloudEvent(msg: NatsMsgLike): CNCFCloudEvent {
       subject: ceHeaders.subject,
       time: ceHeaders.time || now,
       datacontenttype: 'application/json',
-      data: toKittyData(json ?? text, toSeverity(ceHeaders.severity), `Received CloudEvent ${type} from ${source}`),
+      data: toKittyData(isObject(json) ? json : text, toSeverity(ceHeaders.severity), `Received CloudEvent ${type} from ${source}`),
     };
   }
 
@@ -130,10 +130,16 @@ export function decodeNatsCloudEvent(msg: NatsMsgLike): CNCFCloudEvent {
     let data: unknown = json.data;
     if (data === undefined && typeof json.data_base64 === 'string') {
       try {
-        data = atob(json.data_base64);
+        // atob() yields one char per byte; decode those bytes as UTF-8.
+        data = textDecoder.decode(Uint8Array.from(atob(json.data_base64), (c) => c.charCodeAt(0)));
       } catch {}
     }
-    if (typeof data === 'string') data = parseJson(data) ?? data;
+    if (typeof data === 'string') {
+      const parsed = parseJson(data);
+      if (isObject(parsed)) data = parsed;
+    } else if (data !== undefined && data !== null && !isObject(data)) {
+      data = typeof data === 'number' || typeof data === 'boolean' ? String(data) : JSON.stringify(data);
+    }
     return {
       specversion: '1.0',
       id: typeof json.id === 'string' ? json.id : fallbackId,
@@ -154,7 +160,8 @@ export function decodeNatsCloudEvent(msg: NatsMsgLike): CNCFCloudEvent {
     type: 'io.nats.message',
     time: now,
     datacontenttype: 'application/json',
-    data: toKittyData(json ?? text, undefined, `Message on ${msg.subject}`),
+    // Only objects are treated as structured data; anything else (numbers, arrays, null, text) is spoken as sent.
+    data: toKittyData(isObject(json) ? json : text, undefined, `Message on ${msg.subject}`),
   };
 }
 

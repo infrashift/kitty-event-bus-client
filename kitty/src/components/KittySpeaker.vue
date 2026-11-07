@@ -102,6 +102,19 @@
       </p>
     </div>
 
+    <!-- Autoplay gate: the browser blocks sound until the first user gesture -->
+    <button
+      v-if="awaitingAudioUnlock && !isCalibrating"
+      id="audioUnlockHint"
+      data-testid="audio-unlock-hint"
+      type="button"
+      class="absolute z-30 bottom-[8%] left-1/2 -translate-x-1/2 w-max max-w-[90%] px-3.5 py-1.5 rounded-full bg-neutral-900/85 dark:bg-neutral-100/90 text-white dark:text-neutral-900 text-[11px] sm:text-xs tracking-wide shadow-lg cursor-pointer animate-pulse"
+      title="Your browser blocks sound until you interact with the page"
+      @click="speechEngine.unlockAudioFromGesture()"
+    >
+      🔈 Tap anywhere to hear KITTY
+    </button>
+
     <!-- Calibration Instructional Text -->
     <div
       id="hoverGuide"
@@ -288,6 +301,8 @@ const state = {
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isSpeaking = ref(false);
+const awaitingAudioUnlock = ref(false);
+let lastSpokenPayload: KittyEventPayload | null = null;
 const activeChunk = ref<MessageChunk | null>(null);
 const activeChunkIndex = ref(0);
 const activeWordIndex = ref(0);
@@ -305,6 +320,7 @@ const calibrationHint = computed(() => {
 // Speech & Formant Engine instance
 const speechEngine = new FelineSpeechEngine((speechState) => {
   isSpeaking.value = speechState.isSpeaking;
+  awaitingAudioUnlock.value = speechState.awaitingAudioUnlock;
   activeChunk.value = speechState.activeChunk;
   activeChunkIndex.value = speechState.activeChunkIndex;
   activeWordIndex.value = speechState.activeWordIndex;
@@ -1905,6 +1921,7 @@ async function speakEvent(
     voicePersona?: VoicePersona;
   }
 ) {
+  lastSpokenPayload = payload;
   currentSubject.value = payload.natsSubject;
   currentSeverity.value = payload.severity;
 
@@ -1974,9 +1991,17 @@ onMounted(() => {
   rafId = requestAnimationFrame(render);
 });
 
+// If sound is switched off while a message waits for the audio unlock, show it now, silently.
+watch(
+  () => props.soundEnabled,
+  (on) => {
+    if (!on && speechEngine.awaitingAudioUnlock && lastSpokenPayload) speakEvent(lastSpokenPayload);
+  }
+);
+
 onBeforeUnmount(() => {
   cancelAnimationFrame(rafId);
-  speechEngine.cancelSpeech();
+  speechEngine.dispose();
   resizeObserver?.disconnect();
   window.removeEventListener('resize', resizeCanvas);
   window.removeEventListener('mousemove', onPointerMove);

@@ -25,6 +25,7 @@ export {
   MockNatsBus,
   createKittyNatsConsumer,
   matchNatsSubject,
+  subjectWithinSubscription,
   type NatsEnvelope,
   type NatsSubscriptionCallback,
 } from './events/mockNatsBus';

@@ -90,9 +90,9 @@ Either way the log should show `Listening for websocket clients on ws://0.0.0.0:
 - **Local site:** `make dev`, then open `http://localhost:4321/kitty-event-bus-client/speaker/?nats=ws://localhost:8080`.
 - **Plain-HTML example:** [`/examples/standalone/?nats=ws://localhost:8080`](/kitty-event-bus-client/examples/standalone/?nats=ws://localhost:8080).
 
-Add `&subject=prod.alerts.>` to listen somewhere other than `cncf.>`. A green **Live NATS** pill briefly confirms the connection, and the inspector drawer keeps saying **live NATS**. If the connection fails, a red pill appears and KITTY falls back to the demo bus.
+Add `&subject=prod.alerts.>` to listen somewhere other than `cncf.>`, and `&publish=1` to enable the demo buttons (see below). A green **Live NATS** pill briefly confirms the connection, and the inspector drawer keeps saying **live NATS**. If the connection fails, a red pill appears and KITTY falls back to the demo bus.
 
-With a live bus, KITTY never publishes anything unprompted. Its **Send CloudEvent**, **Critical Alert**, **AUTO** and inspector **Publish** buttons send real messages to your server. That's handy for testing, and the read-only setup [below](#production-checklist) blocks it.
+**A live bus is read-only by default.** KITTY never publishes anything unprompted, and the **Send CloudEvent**, **Critical Alert**, **AUTO** and inspector **Publish** controls are hidden, so simulated alerts can't reach a real server by accident. The footer shows *listening · live NATS* instead. To test round-trips against a dev server, opt in with `&publish=1`, or with `allowPublish: true` in your own app. Demo presets are then published **inside your subscription**: under `subject=prod.alerts.>`, the GPU alert goes to `prod.alerts.alerts.gpu.thermal`, never to `cncf.*`. The read-only server setup [below](#production-checklist) blocks publishing on the server side too.
 
 ## 3. Publish CloudEvents
 
@@ -156,6 +156,8 @@ Any NATS client works. Publish to a subject under the one KITTY listens to, in e
 | Severity | `data.severity`, `data.level`, or a `severity` extension (`ce-severity` header / top-level `severity`) | `info` |
 | Header line | `type` | `io.nats.message` |
 
+Only JSON *objects* are treated as structured data. Bare numbers, arrays, `null` and plain text are spoken as sent. `data_base64` is decoded as UTF-8.
+
 Severity accepts `info`, `warning`, `error`, `critical`, plus common aliases (`warn`, `err`, `fatal`, `crit`, `alert`, `emergency`). **`error` and `critical` fire the lasers.** Keep messages to a sentence or two: the cat reads every word.
 
 ## 4. Use it in your own app
@@ -182,7 +184,7 @@ onMounted(async () => {
 
 <template>
   <!-- bus is read once at mount, so mount KittyApp after connecting -->
-  <KittyApp v-if="bus" :bus="bus" subject="prod.alerts.>" tts-base-url="/kitty/tts/" :tts-proxy-url="null" />
+  <KittyApp v-if="bus" :bus="bus" subject="prod.alerts.>" tts-base-url="/kitty/tts/" />
 </template>
 ```
 
@@ -234,9 +236,10 @@ no_auth_user: kitty
 | Symptom | Likely cause |
 | :--- | :--- |
 | Red pill: *Couldn't connect* | WebSocket not enabled, wrong port, or `ws://` to a non-localhost host from an `https://` page (use `wss://`). |
+| No Send / Critical Alert buttons | Expected: a live bus is read-only unless you add `&publish=1` (`allowPublish`). |
 | Connected, but nothing is spoken | The subject doesn't match. Check `&subject=` and the inspector's **SUB:** line, and watch the bus with `nats sub ">"` in nats-box. |
 | Events appear in the inspector but the cat says *"Received CloudEvent …"* | No `data.message` / `data.text` / string `data` was found. See [what KITTY reads](#what-kitty-reads-from-a-message). |
 | Container can't read the config (`permission denied`) | SELinux: add `:Z` to the Podman volume mount. |
 | `address already in use` on 8080 | Another service owns the port. Use `make nats NATS_WS_PORT=8089` and `?nats=ws://localhost:8089`. |
 | nats-box: `lookup localhost … no such host` | Inside a container, `localhost` is the container itself. Use the shared network and `nats://kitty-nats:4222`, as above. |
-| No sound | Browsers block audio until you click or tap the page once. |
+| No sound / *Tap anywhere to hear KITTY* | Browsers block audio until you interact with the page. Tap once and the waiting event is spoken. |

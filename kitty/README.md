@@ -24,11 +24,11 @@ import 'kitty-event-bus-client/style.css';
 </script>
 
 <template>
-  <KittyApp tts-base-url="/kitty/tts/" :tts-proxy-url="null" />
+  <KittyApp tts-base-url="/kitty/tts/" />
 </template>
 ```
 
-**Astro**: `<KittyApp client:only="vue" ttsBaseUrl="/kitty/tts/" ttsProxyUrl={null} />` with `@astrojs/vue`.
+**Astro**: `<KittyApp client:only="vue" ttsBaseUrl="/kitty/tts/" />` with `@astrojs/vue`.
 
 **Any page, no bundler**:
 
@@ -36,7 +36,7 @@ import 'kitty-event-bus-client/style.css';
 <link rel="stylesheet" href="/kitty/style.css">
 <div id="cat"></div>
 <script src="/kitty/kitty-event-bus-client.iife.js"></script>
-<script>KittyEventBus.mount('#cat', { ttsBaseUrl: '/kitty/tts/', ttsProxyUrl: null });</script>
+<script>KittyEventBus.mount('#cat', { ttsBaseUrl: '/kitty/tts/' });</script>
 ```
 
 **Live NATS** (the server needs its WebSocket listener enabled):
@@ -56,10 +56,12 @@ Both CloudEvents NATS binding modes are decoded: structured (a JSON envelope) an
 | Option | Default | |
 | :--- | :--- | :--- |
 | `ttsBaseUrl` | `'./tts/'` | Where you host this package's `dist/tts/*.mp3`. |
-| `ttsProxyUrl` | `'./api/tts'` | Live TTS endpoint (dev). `null` on static hosts. |
+| `ttsProxyUrl` | `null` | Live TTS endpoint, e.g. `kittyTtsProxy()` in dev. |
 | `docsUrl` | — | Shows a "docs" link. |
 | `bus` | in-browser demo bus | A `CloudEventBus`, e.g. `natsConnectionBus(nc)`. |
 | `subject` | `'cncf.>'` | NATS subject to subscribe to. |
+| `allowPublish` | `false` for a live bus | Let the demo buttons publish to a live bus, inside `subject`. |
+| `pageTheme` | `true` | Sync dark mode with `<html>` + `localStorage['starlight-theme']`; `false` keeps it inside KITTY. |
 
 Size it with the CSS variable `--kitty-height` (default `100dvh`). `style.css` has no global reset; KITTY's reset is scoped to `.kitty-app`.
 

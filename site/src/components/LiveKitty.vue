@@ -5,11 +5,13 @@
  *   /speaker/                                       in-browser demo bus
  *   /speaker/?nats=ws://localhost:8080              live NATS over WebSocket (subject cncf.>)
  *   /speaker/?nats=wss://nats.example.com&subject=prod.alerts.>
+ *   …&publish=1                                    let the demo buttons publish to the live server
  *
  * Credentials are deliberately NOT accepted in the URL (they'd end up in browser history and
  * server logs). For an authenticated server, embed KittyApp in your own app; see /guides/live-nats/.
  */
-import { onMounted, ref, shallowRef } from 'vue';
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import type { NatsConnection } from '@nats-io/nats-core';
 import { KittyApp, natsConnectionBus, type CloudEventBus } from 'kitty-event-bus-client';
 
 defineProps<{ ttsBaseUrl: string; ttsProxyUrl: string | null; docsUrl: string }>();
@@ -17,18 +19,27 @@ defineProps<{ ttsBaseUrl: string; ttsProxyUrl: string | null; docsUrl: string }>
 const ready = ref(false);
 const bus = shallowRef<CloudEventBus>();
 const subject = ref('cncf.>');
+const allowPublish = ref(false);
+let connection: NatsConnection | null = null;
+let unmounted = false;
 const status = ref<{ ok: boolean; text: string } | null>(null);
 
 onMounted(async () => {
   const q = new URLSearchParams(location.search);
   const server = q.get('nats');
   subject.value = q.get('subject') || 'cncf.>';
+  allowPublish.value = q.get('publish') === '1';
 
   if (server) {
     try {
       // Loaded only when ?nats= is used, so the demo page doesn't pay for the client.
       const { wsconnect } = await import('@nats-io/nats-core');
       const nc = await wsconnect({ servers: server, name: 'kitty-speaker', maxReconnectAttempts: -1 });
+      if (unmounted) {
+        await nc.close();
+        return;
+      }
+      connection = nc;
       bus.value = natsConnectionBus(nc);
       const live = { ok: true, text: `Live NATS: ${server} · ${subject.value}` };
       status.value = live;
@@ -46,6 +57,14 @@ onMounted(async () => {
   }
   ready.value = true;
 });
+
+// Close the WebSocket when the island goes away (view transitions, HMR, SPA hosts),
+// otherwise it would keep reconnecting in the background.
+onBeforeUnmount(() => {
+  unmounted = true;
+  connection?.close().catch(() => {});
+  connection = null;
+});
 </script>
 
 <template>
@@ -53,6 +72,7 @@ onMounted(async () => {
     v-if="ready"
     :bus="bus"
     :subject="subject"
+    :allow-publish="allowPublish"
     :tts-base-url="ttsBaseUrl"
     :tts-proxy-url="ttsProxyUrl"
     :docs-url="docsUrl"

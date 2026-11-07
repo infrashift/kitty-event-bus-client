@@ -32,7 +32,7 @@ import 'kitty-event-bus-client/style.css';
 </script>
 
 <template>
-  <KittyApp tts-base-url="/kitty/tts/" :tts-proxy-url="null" />
+  <KittyApp tts-base-url="/kitty/tts/" />
 </template>
 ```
 
@@ -79,7 +79,7 @@ Use **`client:only="vue"`**, not `client:load`. KITTY draws on a canvas and uses
 <div id="cat"></div>
 <script src="/kitty/kitty-event-bus-client.iife.js"></script>
 <script>
-  KittyEventBus.mount('#cat', { ttsBaseUrl: '/kitty/tts/', ttsProxyUrl: null });
+  KittyEventBus.mount('#cat', { ttsBaseUrl: '/kitty/tts/' });
 </script>
 ```
 
@@ -92,10 +92,12 @@ Copy `kitty-event-bus-client.iife.js`, `style.css` and the `tts/` folder from th
 | Option | Default | Description |
 | :--- | :--- | :--- |
 | `ttsBaseUrl` | `'./tts/'` | URL of the folder where you host the package's `dist/tts/*.mp3`. |
-| `ttsProxyUrl` | `'./api/tts'` | Live TTS endpoint for messages without an MP3. Pass `null` on static hosts. |
+| `ttsProxyUrl` | `null` (off) | Live TTS endpoint for messages without an MP3, e.g. `kittyTtsProxy()` in dev. A URL with its own query string works. |
 | `docsUrl` | none | When set, shows a **docs** link in the header. |
 | `bus` | in-browser `MockNatsBus` demo | Where CloudEvents come from. Use `natsConnectionBus(await wsconnect(…))` for a live NATS server. See [Connect to a live NATS server](/kitty-event-bus-client/guides/live-nats/). Read once at mount. |
 | `subject` | `'cncf.>'` | NATS subject (wildcards allowed) to subscribe to. |
+| `allowPublish` | `false` for a live `bus` | Lets the demo buttons (Send CloudEvent, Critical Alert, AUTO, inspector publisher) publish to a live bus. The demo bus always allows it. Presets are published *inside* `subject`, so KITTY hears them back. |
+| `pageTheme` | `true` | Sync light/dark with the page (`dark` on `<html>`, `localStorage['starlight-theme']`). Set `false` to keep the theme inside KITTY and never touch the host page. |
 
 Sizing: by default KITTY is exactly one viewport tall (`100dvh`). Set the CSS variable **`--kitty-height`** on a parent element to fit it into your layout, for example `#cat { --kitty-height: 600px }`.
 
@@ -103,8 +105,8 @@ Sizing: by default KITTY is exactly one viewport tall (`100dvh`). Set the CSS va
 
 - **Styles are scoped.** `style.css` contains Tailwind's utilities and theme variables but **not** Tailwind's global reset. KITTY applies a minimal reset inside `.kitty-app` only, so it won't restyle your page.
 - **Fonts aren't bundled.** For the gallery look, load Cormorant Garamond, Inter, JetBrains Mono and Noto Serif JP from Google Fonts (see the example page). Otherwise KITTY uses system fonts.
-- **Theme.** The light/dark toggle adds or removes `dark` on `<html>` and stores the choice in `localStorage['starlight-theme']`, the same key Astro Starlight uses. That's how this site and the speaker share one theme.
-- **Audio** starts only after a user gesture (a browser rule).
+- **Theme.** By default the light/dark toggle adds or removes `dark` on `<html>` and stores the choice in `localStorage['starlight-theme']`, the same key Astro Starlight uses. That's how this site and the speaker share one theme. If your page manages its own dark mode, pass `pageTheme: false`: KITTY then keeps its theme on its own root element and leaves your page alone.
+- **Audio** needs a user gesture (the browser autoplay policy). KITTY listens for the first click, tap or key anywhere on the page. Until then it holds the newest event behind a *Tap anywhere to hear KITTY* hint, instead of animating it in silence. Muted KITTY (sound off) isn't held.
 - **The portrait** is loaded at runtime from Unsplash.
 - **Debugging.** `window.__kittyDebug` exposes internals for tests.
 

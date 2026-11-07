@@ -83,4 +83,31 @@ test.describe('standalone <script> example', () => {
     const box = (await page.locator('#faceCanvas').boundingBox())!;
     expect(Math.abs(box.width - box.height), 'canvas is not a circle').toBeLessThanOrEqual(1);
   });
+
+  test('pageTheme: false keeps the theme inside KITTY and leaves <html> alone', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto('examples/standalone/');
+    await waitForKitty(page);
+    await page.evaluate(() => {
+      document.documentElement.classList.add('dark'); // the host page's own dark mode
+      const el = document.createElement('div');
+      el.id = 'cat2';
+      document.body.append(el);
+      (window as any).KittyEventBus.mount(el, { pageTheme: false, ttsProxyUrl: null });
+    });
+    await expect(page.locator('#cat2 .kitty-app')).toBeVisible();
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+    await page.locator('#cat2 #themeToggleBtn').click();
+    await expect(page.locator('#cat2 .kitty-app')).toHaveClass(/\bdark\b/);
+    await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+  });
+
+  test('the first Send CloudEvent after the welcome event is not the critical alert', async ({ page }) => {
+    await page.goto('examples/standalone/');
+    await waitForKitty(page);
+    await expect(page.locator('#activeEventType')).toHaveText('io.cncf.k8s.pod.ready');
+    await page.locator('#sendEventBtn').click();
+    await expect(page.locator('#eventCountBadge')).toHaveText('2');
+    await expect(page.locator('#activeEventType')).not.toHaveText('io.infrashift.gpu.thermal.critical');
+  });
 });

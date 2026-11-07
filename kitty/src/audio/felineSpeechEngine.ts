@@ -40,6 +40,11 @@ export interface SpeechChunkState {
   activeWordIndex: number;
   mouthOpen: number;
   selectedVoiceName: string;
+  /**
+   * True while a message is held back because the browser hasn't allowed audio yet
+   * (autoplay policy: no user gesture on the page so far). It is spoken on the first tap/click/key.
+   */
+  awaitingAudioUnlock: boolean;
 }
 
 /**
@@ -538,7 +543,7 @@ interface NeuralTimelineAlignment {
 /**
  * Where the engine looks for neural TTS audio.
  * - `ttsBaseUrl`: folder holding the pre-synthesized `<hash>.mp3` files shipped in the package's `dist/tts/`.
- * - `ttsProxyUrl`: optional live `/api/tts` proxy (see `kittyTtsProxy()` in `vite-plugin-tts.mjs`); `null` disables it.
+ * - `ttsProxyUrl`: optional live `/api/tts` proxy (see `kittyTtsProxy()` in `vite-plugin-tts.mjs`); `null` (default) disables it.
  */
 export interface TtsEndpoints {
   ttsBaseUrl?: string;
@@ -546,7 +551,8 @@ export interface TtsEndpoints {
 }
 
 export const DEFAULT_TTS_BASE_URL = './tts/';
-export const DEFAULT_TTS_PROXY_URL = './api/tts';
+/** No live proxy by default: static hosts don't have one. The dev harness opts in with './api/tts'. */
+export const DEFAULT_TTS_PROXY_URL: string | null = null;
 
 export class FelineSpeechEngine {
   private ttsBaseUrl = DEFAULT_TTS_BASE_URL;
@@ -578,16 +584,93 @@ export class FelineSpeechEngine {
 
   private onStateChange?: (state: SpeechChunkState) => void;
 
+  // Browser autoplay policy: audio (Web Audio and Web Speech) is blocked until the user
+  // interacts with the page. Messages that arrive before that wait here instead of
+  // "speaking" silently.
+  private audioUnlocked = false;
+  private unlockWaiters: Array<() => void> = [];
+  private removeUnlockListeners: (() => void) | null = null;
+  public awaitingAudioUnlock = false;
+
   constructor(onStateChange?: (state: SpeechChunkState) => void, endpoints: TtsEndpoints = {}) {
     this.onStateChange = onStateChange;
     this.setTtsEndpoints(endpoints);
     this.initVoiceDiscovery();
+    this.installAudioUnlockListeners();
+  }
+
+  /** Listens (once) for the first user gesture anywhere on the page to unlock audio. */
+  private installAudioUnlockListeners(): void {
+    if (typeof window === 'undefined' || this.removeUnlockListeners) return;
+    const events = ['pointerdown', 'touchend', 'click', 'keydown'] as const;
+    const onGesture = () => this.unlockAudioFromGesture();
+    for (const e of events) window.addEventListener(e, onGesture, { capture: true, passive: true });
+    this.removeUnlockListeners = () => {
+      for (const e of events) window.removeEventListener(e, onGesture, { capture: true });
+      this.removeUnlockListeners = null;
+    };
+  }
+
+  private markAudioUnlocked(): void {
+    this.audioUnlocked = true;
+    this.removeUnlockListeners?.();
+    const waiters = this.unlockWaiters;
+    this.unlockWaiters = [];
+    for (const resolve of waiters) resolve();
+  }
+
+  /**
+   * Unlocks audio. Must be called from inside a user-gesture handler (click, tap, key):
+   * resumes the AudioContext and primes Web Speech, which both require a gesture.
+   */
+  public unlockAudioFromGesture(): void {
+    if (this.audioUnlocked) return;
+    const actx = this.ensureAudioContext();
+    try {
+      if ('speechSynthesis' in window) {
+        const primer = new SpeechSynthesisUtterance('');
+        primer.volume = 0;
+        window.speechSynthesis.speak(primer);
+      }
+    } catch {}
+    if (!actx || actx.state === 'running') {
+      this.markAudioUnlocked();
+    } else {
+      actx.resume().then(() => this.markAudioUnlocked()).catch(() => {});
+    }
+  }
+
+  /** Whether the browser currently lets us make sound (tries to resume the AudioContext). */
+  private async isAudioAllowed(): Promise<boolean> {
+    if (this.audioUnlocked || typeof window === 'undefined') return true;
+    // Test hook: simulate a browser that hasn't had a user gesture yet.
+    if ((window as unknown as { __kittyForceAudioLocked?: boolean }).__kittyForceAudioLocked) return false;
+    const actx = this.ensureAudioContext();
+    if (!actx) return true; // no Web Audio at all: let Web Speech try
+    if (actx.state !== 'running') {
+      // Without a gesture, Chrome/Safari leave resume() pending and the context suspended.
+      await Promise.race([actx.resume().catch(() => {}), new Promise((r) => setTimeout(r, 150))]);
+    }
+    if (actx.state === 'running') {
+      this.markAudioUnlocked();
+      return true;
+    }
+    return false;
+  }
+
+  /** Removes the page-level gesture listeners (call when the owning component unmounts). */
+  public dispose(): void {
+    this.cancelSpeech();
+    this.removeUnlockListeners?.();
+    this.unlockWaiters = [];
   }
 
   /** Updates where static TTS MP3s and the optional live TTS proxy are fetched from. */
   public setTtsEndpoints(endpoints: TtsEndpoints): void {
     if (endpoints.ttsBaseUrl !== undefined) {
-      this.ttsBaseUrl = endpoints.ttsBaseUrl.replace(/\/?$/, '/');
+      // '' means "relative to the current page", so don't turn it into the site root '/'.
+      const base = endpoints.ttsBaseUrl;
+      this.ttsBaseUrl = base === '' || base.endsWith('/') ? base : `${base}/`;
     }
     if (endpoints.ttsProxyUrl !== undefined) this.ttsProxyUrl = endpoints.ttsProxyUrl;
   }
@@ -654,6 +737,7 @@ export class FelineSpeechEngine {
   public cancelSpeech(): void {
     this.currentRunId += 1;
     this.stopActiveAudio();
+    this.awaitingAudioUnlock = false;
     this.isSpeaking = false;
     this.chunks = [];
     this.activeChunkIndex = 0;
@@ -1028,7 +1112,8 @@ export class FelineSpeechEngine {
 
     const candidateUrls = [`${this.ttsBaseUrl}${staticHash}.mp3`];
     if (this.ttsProxyUrl) {
-      candidateUrls.push(`${this.ttsProxyUrl}?tl=${tl}&text=${encodeURIComponent(textForTts)}`);
+      const sep = this.ttsProxyUrl.includes('?') ? '&' : '?';
+      candidateUrls.push(`${this.ttsProxyUrl}${sep}tl=${tl}&text=${encodeURIComponent(textForTts)}`);
     }
 
     for (const url of candidateUrls) {
@@ -1474,9 +1559,24 @@ export class FelineSpeechEngine {
     if (chunks.length === 0) {
       this.isSpeaking = false;
       this.chunks = [];
+      this.awaitingAudioUnlock = false;
       this.notifyState();
       return;
     }
+
+    // Autoplay gate: if sound is on but the browser hasn't allowed audio yet, hold this message
+    // (the newest one wins) until the first user gesture, instead of animating it in silence.
+    if (options.soundEnabled && !(await this.isAudioAllowed())) {
+      if (this.currentRunId !== runId) return;
+      this.isSpeaking = false;
+      this.chunks = [];
+      this.awaitingAudioUnlock = true;
+      this.notifyState();
+      await new Promise<void>((resolve) => this.unlockWaiters.push(resolve));
+      if (this.currentRunId !== runId) return; // a newer message (or cancel) took over
+    }
+    if (this.currentRunId !== runId) return;
+    this.awaitingAudioUnlock = false;
 
     this.chunks = chunks;
     this.isSpeaking = true;
@@ -1710,6 +1810,7 @@ export class FelineSpeechEngine {
       activeWordIndex: this.activeWordIndex,
       mouthOpen: this.smoothedMouthOpen,
       selectedVoiceName: this.selectedVoiceName,
+      awaitingAudioUnlock: this.awaitingAudioUnlock,
     });
   }
 }

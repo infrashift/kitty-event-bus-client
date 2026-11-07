@@ -242,4 +242,43 @@ test.describe('kitty-event-bus-client', () => {
     const pinched = await featureOnScreen(page, 'rightEye');
     expect(pinched.rx).toBeGreaterThan(c.rx * 1.5);
   });
+
+  test('autoplay gate: before any user gesture the welcome event waits, then speaks on the first tap', async ({
+    page,
+  }) => {
+    // Simulate a real browser on first load: audio is blocked until the user interacts.
+    // (Playwright's Chromium otherwise allows audio without a gesture.)
+    await page.addInitScript(() => ((window as any).__kittyForceAudioLocked = true));
+    await openKittyApp(page);
+
+    await expect(page.locator('#eventCountBadge')).toHaveText('1');
+    await expect(page.getByTestId('audio-unlock-hint')).toBeVisible();
+    // The message is held, not animated in silence.
+    await expect(page.getByTestId('speech-bubble')).toBeHidden();
+    expect(await page.evaluate(() => (window as any).__kittyDebug.speechEngine.awaitingAudioUnlock)).toBe(true);
+
+    // "Tap anywhere": the hint vanishes during the gesture itself, so tap a stable element.
+    await page.locator('.app-header h1').click();
+
+    await expect(page.getByTestId('audio-unlock-hint')).toBeHidden();
+    await expect(page.getByTestId('bubble-chunk-text')).toContainText('catnip-scheduler');
+  });
+
+  test('autoplay gate: a newer event replaces the one waiting for the unlock', async ({ page }) => {
+    await page.addInitScript(() => ((window as any).__kittyForceAudioLocked = true));
+    await openKittyApp(page);
+    await expect(page.getByTestId('audio-unlock-hint')).toBeVisible();
+
+    // An event arrives (e.g. from a live bus) while still locked: it supersedes the welcome event.
+    await page.evaluate(() => {
+      (window as any).__kittyDebug.speakEvent({
+        id: 'ce-late', natsSubject: 'cncf.late', type: 'io.late', source: 'urn:test',
+        severity: 'info', message: 'Newest message wins the queue.', time: new Date().toISOString(),
+      });
+    });
+    await page.keyboard.press('Enter'); // a key press is a user gesture too
+
+    await expect(page.getByTestId('bubble-chunk-text')).toContainText('Newest');
+    await expect(page.getByTestId('audio-unlock-hint')).toBeHidden();
+  });
 });

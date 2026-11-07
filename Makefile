@@ -67,9 +67,11 @@ site-test: build ## Playwright suite for the site (+ live NATS tests when NATS_W
 
 test: kitty-test site-test ## Both suites, headless, on all screen sizes
 
-test-report: ## Open the HTML reports from the last test runs
-	cd kitty && $(BUN) x playwright show-report &
-	cd site && $(BUN) x playwright show-report
+test-report: ## Open the last HTML reports (kitty on :9323, site on :9324; Ctrl-C stops both)
+	@trap 'kill 0' INT TERM; \
+	  (cd kitty && $(BUN) x playwright show-report --port 9323) & \
+	  (cd site && $(BUN) x playwright show-report --port 9324) & \
+	  wait
 
 pack: kitty-build ## Dry-run `bun pm pack`: what would be published to npm
 	cd kitty && $(BUN) pm pack --dry-run

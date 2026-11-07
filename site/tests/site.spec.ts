@@ -82,6 +82,14 @@ test.describe('site', () => {
     expect(kittyRules).toBe(false);
   });
 
+  test('the sponsor page links to Infrashift.io on GitHub Sponsors', async ({ page }) => {
+    await page.goto('sponsor/');
+    await expect(page.getByRole('link', { name: 'Become a GitHub Sponsor' })).toHaveAttribute(
+      'href',
+      'https://github.com/sponsors/infrashift',
+    );
+  });
+
   test('every internal link resolves', async ({ page, request }, info) => {
     test.skip(info.project.name !== 'desktop', 'link check only needs to run once');
     const seen = new Set<string>();

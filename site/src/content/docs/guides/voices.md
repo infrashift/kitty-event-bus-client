@@ -21,7 +21,7 @@ description: KITTY's voice personas, vocalizer modes, and where its speech audio
 For each message KITTY tries these sources in order:
 
 1. **Pre-synthesized MP3s.** The package ships 12 files in `dist/tts/` (every preset × both personas), named by a hash of language + text (`hashTtsKey`). The app loads them from its `ttsBaseUrl`. On this site that is `/kitty-event-bus-client/kitty/tts/`. The waveform drives the jaw for exact lip-sync.
-2. **The live TTS proxy**, if `ttsProxyUrl` is set. `kittyTtsProxy()` (exported from `kitty-event-bus-client/vite`) is a dev-server middleware that fetches neural TTS for any text, such as custom messages. It runs under `make dev`. GitHub Pages is static, so the hosted site disables it.
+2. **The live TTS proxy**, if `ttsProxyUrl` is set (it is off by default). `kittyTtsProxy()` (exported from `kitty-event-bus-client/vite`) is a dev-server middleware that fetches neural TTS for any text, such as custom messages. It runs under `make dev`. GitHub Pages is static, so the hosted site disables it.
 3. **The browser's Web Speech API**, as a last resort. The jaw then follows word boundaries and vowel keyframes instead of a waveform.
 
 Meows never need audio files. Every one is synthesized live with dual sawtooth/triangle oscillators through `F1`/`F2` bandpass filters, plus a white-noise hiss.

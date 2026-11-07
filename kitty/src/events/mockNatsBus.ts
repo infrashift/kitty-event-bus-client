@@ -1,10 +1,4 @@
-import {
-  CLOUDEVENT_PRESETS,
-  buildCloudEventFromPreset,
-  type CNCFCloudEvent,
-  type CloudEventPreset,
-  type KittyEventPayload,
-} from './cloudevents';
+import type { CNCFCloudEvent, KittyEventPayload } from './cloudevents';
 import type { CloudEventBus } from './bus';
 
 export interface NatsEnvelope {
@@ -46,8 +40,6 @@ export class MockNatsBus implements CloudEventBus {
   private subscriptions: SubscriptionEntry[] = [];
   private nextSubId = 1;
   private seq = 0;
-  private presetCursor = 0;
-  private autoStreamTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Subscribe to a NATS subject pattern (e.g., `cncf.>`).
@@ -79,46 +71,26 @@ export class MockNatsBus implements CloudEventBus {
     }
     return envelope;
   }
+}
 
-  /**
-   * Publishes the next simulated CloudEvent preset from the rotating pool.
-   */
-  publishNextPreset(customOverrides?: Partial<CloudEventPreset>): NatsEnvelope {
-    const preset = CLOUDEVENT_PRESETS[this.presetCursor % CLOUDEVENT_PRESETS.length];
-    this.presetCursor += 1;
-    const { natsSubject, cloudEvent } = buildCloudEventFromPreset(preset, customOverrides);
-    return this.publish(natsSubject, cloudEvent);
-  }
-
-  /**
-   * Publishes a specific preset by index.
-   */
-  publishPresetByIndex(index: number): NatsEnvelope {
-    const safeIdx = Math.abs(index) % CLOUDEVENT_PRESETS.length;
-    const preset = CLOUDEVENT_PRESETS[safeIdx];
-    const { natsSubject, cloudEvent } = buildCloudEventFromPreset(preset);
-    return this.publish(natsSubject, cloudEvent);
-  }
-
-  /**
-   * Starts auto-streaming simulated CNCF CloudEvents on an interval.
-   */
-  startAutoStream(intervalMs = 12000): void {
-    this.stopAutoStream();
-    this.autoStreamTimer = setInterval(() => {
-      this.publishNextPreset();
-    }, intervalMs);
-  }
-
-  /**
-   * Stops the auto-stream interval timer.
-   */
-  stopAutoStream(): void {
-    if (this.autoStreamTimer !== null) {
-      clearInterval(this.autoStreamTimer);
-      this.autoStreamTimer = null;
+/**
+ * Returns a subject to publish to that the subscription `subscriptionPattern` will receive.
+ * If `preferred` already matches, it's used as-is. Otherwise wildcards in the pattern are
+ * filled in from `preferred` (minus its first token, e.g. `cncf`), so a demo preset like
+ * `cncf.alerts.gpu.thermal` published under `prod.alerts.>` becomes `prod.alerts.alerts.gpu.thermal`.
+ */
+export function subjectWithinSubscription(subscriptionPattern: string, preferred: string): string {
+  if (matchNatsSubject(subscriptionPattern, preferred)) return preferred;
+  const tail = preferred.split('.').slice(1);
+  const out: string[] = [];
+  for (const token of subscriptionPattern.split('.')) {
+    if (token === '>') {
+      out.push(...(tail.length ? tail : ['kitty']));
+      break;
     }
+    out.push(token === '*' ? tail.shift() ?? 'kitty' : token);
   }
+  return out.join('.');
 }
 
 /**

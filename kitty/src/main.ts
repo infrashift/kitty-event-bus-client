@@ -3,4 +3,7 @@
 import './style.css';
 import { mountKitty } from './mount';
 
-mountKitty('#app', { docsUrl: 'https://infrashift.github.io/kitty-event-bus-client/' });
+mountKitty('#app', {
+  docsUrl: 'https://infrashift.github.io/kitty-event-bus-client/',
+  ttsProxyUrl: './api/tts', // kittyTtsProxy() in vite.config.ts (dev server and `vite preview`)
+});

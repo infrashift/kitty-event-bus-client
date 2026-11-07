@@ -34,11 +34,11 @@
         </button>
       </div>
 
-      <!-- Publish Custom / Preset CloudEvent Section -->
-      <div class="p-3.5 border-b border-neutral-300/70 dark:border-neutral-800 bg-neutral-200/40 dark:bg-neutral-900/50 space-y-2.5">
+      <!-- Publish Custom / Preset CloudEvent Section (hidden for a read-only live bus) -->
+      <div v-if="canPublish" class="p-3.5 border-b border-neutral-300/70 dark:border-neutral-800 bg-neutral-200/40 dark:bg-neutral-900/50 space-y-2.5">
         <div class="flex items-center justify-between">
           <span class="text-[10px] font-mono uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-            Publish Mock CloudEvent to NATS Bus
+            {{ live ? 'Publish Demo CloudEvent to Live NATS' : 'Publish Mock CloudEvent to NATS Bus' }}
           </span>
           <div class="flex flex-wrap gap-1">
             <button
@@ -164,8 +164,9 @@ withDefaults(
     events: NatsEnvelope[];
     subject?: string;
     live?: boolean;
+    canPublish?: boolean;
   }>(),
-  { subject: 'cncf.>', live: false }
+  { subject: 'cncf.>', live: false, canPublish: true }
 );
 
 const emit = defineEmits<{

@@ -1,6 +1,7 @@
 <template>
   <div
     ref="rootRef"
+    :class="{ dark: !pageTheme && isDarkMode }"
     class="kitty-app bg-gallery-light dark:bg-gallery-dark text-neutral-800 dark:text-neutral-200 transition-colors duration-700 ease-out font-sans selection:bg-neutral-300 dark:selection:bg-neutral-800"
   >
   <!-- Grain ambience -->
@@ -163,7 +164,7 @@
         </span>
       </div>
 
-      <div class="flex flex-wrap items-center justify-center gap-1.5">
+      <div v-if="canPublish" class="flex flex-wrap items-center justify-center gap-1.5">
         <button
           id="sendEventBtn"
           class="pill px-2.5 py-1 rounded-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-[10px] font-medium tracking-wide hover:opacity-90 transition-opacity cursor-pointer"
@@ -195,6 +196,14 @@
         >
           {{ autoStreamEnabled ? 'AUTO: ON' : 'AUTO: OFF' }}
         </button>
+      </div>
+      <div
+        v-else
+        id="listeningLabel"
+        class="text-[10px] font-mono tracking-wider opacity-70"
+        title="Publishing is off for this live bus (allowPublish)"
+      >
+        listening · live NATS · {{ subject }}
       </div>
     </div>
 
@@ -375,6 +384,7 @@
     :events="consumedEvents"
     :subject="subject"
     :live="!usingMockBus"
+    :can-publish="canPublish"
     @close="inspectorOpen = false"
     @publish-preset="onPublishPreset"
     @publish-custom="onPublishCustom"
@@ -390,6 +400,7 @@ import CloudEventInspector from './components/CloudEventInspector.vue';
 import {
   MockNatsBus,
   createKittyNatsConsumer,
+  subjectWithinSubscription,
   type NatsEnvelope,
 } from './events/mockNatsBus';
 import type { CloudEventBus } from './events/bus';
@@ -413,6 +424,8 @@ const {
   docsUrl = '',
   bus,
   subject = 'cncf.>',
+  allowPublish,
+  pageTheme = true,
 } = defineProps<KittyAppProps>();
 
 // Same key as Astro Starlight, so a Starlight docs site and the app share one theme choice.
@@ -439,14 +452,18 @@ const consumedEvents = ref<NatsEnvelope[]>([]);
 // The bus is read once at mount; remount KittyApp (e.g. with a `:key`) to switch buses.
 const usingMockBus = !bus;
 const natsBus: CloudEventBus = bus ?? new MockNatsBus();
+// Demo-event buttons publish to the bus. On a live bus that's opt-in: they would put
+// simulated (even critical) alerts on a real server that other consumers may act on.
+const canPublish = usingMockBus || allowPublish === true;
 let unsubscribeConsumer: (() => void) | null = null;
 let presetCursor = 0;
 let autoStreamTimer: ReturnType<typeof setInterval> | null = null;
 
 function publishPreset(index: number) {
+  if (!canPublish) return;
   const preset = CLOUDEVENT_PRESETS[Math.abs(index) % CLOUDEVENT_PRESETS.length];
   const { natsSubject, cloudEvent } = buildCloudEventFromPreset(preset);
-  natsBus.publish(natsSubject, cloudEvent);
+  natsBus.publish(subjectWithinSubscription(subject, natsSubject), cloudEvent);
 }
 
 function stopAutoStream() {
@@ -455,12 +472,14 @@ function stopAutoStream() {
 }
 
 function setTheme(dark: boolean, persist = true) {
+  isDarkMode.value = dark;
+  // pageTheme=false: keep the theme inside KITTY (the root gets `dark`); never touch the host page.
+  if (!pageTheme) return;
   if (persist) {
     try {
       localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
     } catch {}
   }
-  isDarkMode.value = dark;
   if (dark) {
     document.documentElement.classList.add('dark');
   } else {
@@ -524,6 +543,7 @@ function onPublishCustom(custom: {
   severity: EventSeverity;
   message: string;
 }) {
+  if (!canPublish) return;
   const basePreset = CLOUDEVENT_PRESETS[0];
   const { natsSubject, cloudEvent } = buildCloudEventFromPreset(basePreset, {
     natsSubject: custom.natsSubject,
@@ -559,7 +579,7 @@ onMounted(() => {
   // Initialize theme from localStorage 'starlight-theme'
   let savedTheme = '';
   try {
-    savedTheme = localStorage.getItem(THEME_KEY) || '';
+    if (pageTheme) savedTheme = localStorage.getItem(THEME_KEY) || '';
   } catch {}
   if (savedTheme === 'dark' || savedTheme === 'light') {
     setTheme(savedTheme === 'dark', false);
@@ -580,7 +600,8 @@ onMounted(() => {
 
   // Demo bus only: publish a welcome CloudEvent so the speech bubble and inspector are populated
   // on load. (A live bus never gets an unprompted publish from KITTY.)
-  if (usingMockBus) publishPreset(presetCursor++);
+  // (It doesn't advance the cursor, so the first "Send CloudEvent" click publishes preset 0 too.)
+  if (usingMockBus) publishPreset(0);
 });
 
 onBeforeUnmount(() => {

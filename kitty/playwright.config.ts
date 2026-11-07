@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4322;
+const PORT = 4331; // dedicated test port (avoids clashing with dev/preview servers on 4321-4322)
 const chrome = devices['Desktop Chrome'];
 
 const screens = [
