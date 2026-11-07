@@ -180,7 +180,7 @@ const props = withDefaults(
   {
     eventPayload: null,
     voiceMode: 'both',
-    voicePersona: 'female',
+    voicePersona: 'nz-male',
     soundEnabled: true,
     isDark: false,
     laserAlertMode: false,

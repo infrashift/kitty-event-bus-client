@@ -167,7 +167,7 @@ export function buildMessageSyllableTimeline(
   totalDurationMs: number;
 } {
   const severity = options.severity ?? 'info';
-  const persona = options.voicePersona ?? 'female';
+  const persona = options.voicePersona ?? 'nz-male';
   const formants = PERSONA_VOWEL_FORMANTS[persona];
   const syllables: SyllableKeyframe[] = [];
   const chunkEndTimesMs: number[] = [];
@@ -553,7 +553,7 @@ export class FelineSpeechEngine {
   public chunkEndTimesMs: number[] = [];
   public manualRoarBurst = 0;
   public smoothedMouthOpen = 0;
-  public selectedVoiceName = 'Google Neural Female (en-US)';
+  public selectedVoiceName = 'New Zealand Male Baritone (en-NZ)';
 
   // Active Neural AudioBuffer playback state (for real-time acoustic RMS lip-sync)
   private activeNeuralAlignment: NeuralTimelineAlignment | null = null;
@@ -648,7 +648,7 @@ export class FelineSpeechEngine {
     soundEnabled: boolean,
     isMadScream = false,
     durationScale = 1.0,
-    voicePersona: VoicePersona = 'female'
+    voicePersona: VoicePersona = 'nz-male'
   ): void {
     this.manualRoarBurst = 1.0;
     if (!soundEnabled) return;
@@ -680,7 +680,7 @@ export class FelineSpeechEngine {
       voicePersona?: VoicePersona;
     }
   ): void {
-    const persona = opts.voicePersona ?? 'female';
+    const persona = opts.voicePersona ?? 'nz-male';
     const dur = Math.max(0.38, opts.durationSec);
     const isMad = Boolean(opts.isMadScream);
     const pScale = opts.pitchScale ?? 1.0;
@@ -806,7 +806,7 @@ export class FelineSpeechEngine {
     syllables: SyllableKeyframe[],
     soundEnabled: boolean,
     severity: EventSeverity,
-    voicePersona: VoicePersona = 'female'
+    voicePersona: VoicePersona = 'nz-male'
   ): void {
     if (!soundEnabled || syllables.length === 0 || chunks.length === 0) return;
     const actx = this.ensureAudioContext();
@@ -984,7 +984,7 @@ export class FelineSpeechEngine {
    */
   private async fetchAndDecodeNeuralSpeech(
     spokenText: string,
-    voicePersona: VoicePersona = 'female'
+    voicePersona: VoicePersona = 'nz-male'
   ): Promise<AudioBuffer | null> {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return null;
     // Skip remote neural fetch in automated headless Playwright tests so offline sandbox tests run instantaneously
@@ -1040,7 +1040,7 @@ export class FelineSpeechEngine {
   }
 
   /**
-   * Pre-warms the Neural Female TTS audio cache in the background for instant zero-latency playback.
+   * Pre-warms the Neural TTS audio cache in the background for instant zero-latency playback.
    */
   public prewarmMessages(rawMessages: string[]): void {
     if (typeof window === 'undefined' || (typeof navigator !== 'undefined' && navigator.webdriver)) {
@@ -1051,7 +1051,8 @@ export class FelineSpeechEngine {
         const chunks = chunkMessageForBubble(msg);
         if (chunks.length > 0) {
           const spokenText = normalizeTextForSmoothSpeech(chunks.map((c) => c.text).join(' '));
-          this.fetchAndDecodeNeuralSpeech(spokenText).catch(() => {});
+          this.fetchAndDecodeNeuralSpeech(spokenText, 'nz-male').catch(() => {});
+          this.fetchAndDecodeNeuralSpeech(spokenText, 'female').catch(() => {});
         }
       }
     }, 600);
@@ -1203,7 +1204,7 @@ export class FelineSpeechEngine {
   private playDecodedNeuralSpeech(
     audioBuffer: AudioBuffer,
     runId: number,
-    voicePersona: VoicePersona = 'female'
+    voicePersona: VoicePersona = 'nz-male'
   ): Promise<void> {
     const actx = this.ensureAudioContext();
     if (!actx) return Promise.resolve();
@@ -1291,7 +1292,7 @@ export class FelineSpeechEngine {
     _severity: EventSeverity,
     expectedDurationMs: number,
     runId: number,
-    voicePersona: VoicePersona = 'female'
+    voicePersona: VoicePersona = 'nz-male'
   ): Promise<void> {
     if (
       !soundEnabled ||
@@ -1438,7 +1439,7 @@ export class FelineSpeechEngine {
     this.activeNeuralAlignment = null;
 
     const severity = options.severity ?? 'info';
-    const voicePersona = options.voicePersona ?? 'female';
+    const voicePersona = options.voicePersona ?? 'nz-male';
     const chunks = chunkMessageForBubble(message, {
       maxWords: options.maxWordsPerChunk ?? 8,
       maxChars: options.maxCharsPerChunk ?? 52,

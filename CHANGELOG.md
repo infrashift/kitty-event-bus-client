@@ -12,6 +12,17 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.4.0`] — 2026-11-06 — *The Kiwi Default Decree & Static Neural Audio Bundle*
+
+### 🔄 Changed
+- **Defaulted to `Male` (New Zealand Baritone) Voice Persona:** Elevated `Male` (`'nz-male'`) to the default startup voice persona across [`src/App.vue`](src/App.vue), [`src/components/KittySpeaker.vue`](src/components/KittySpeaker.vue), and [`src/audio/felineSpeechEngine.ts`](src/audio/felineSpeechEngine.ts). Upon initial page load, the cat now immediately greets your production cluster with friendly Southern Hemisphere composure (*"Pod catnip-scheduler-7f9b is riddy and purring..."*).
+- **Backed Off SOLA Time-Compression (`transformToNewZealandMaleBuffer`):** Relaxed the SOLA time-compression ratio from `1.26x` (50% overlap) to `1.12x` (75% 4× Hann window overlap) and pitch-shift from `0.78x` to `0.88x` so Kiwi consonants remain crisp and phase-coherent.
+
+### ✨ Added
+- **Pre-Bundled Static Neural TTS Assets (`public/tts/*.mp3`):** Pre-synthesized and hashed (`hashTtsKey`) all 12 Neural TTS audio streams (`en-AU` Kiwi Male and `en-US` Female for every CloudEvent preset) directly into `public/tts/` so static deployments on GitHub Pages play crystal-clear neural speech with zero backend server required.
+
+---
+
 ## [`1.3.0`] — 2026-11-06 — *The Cybernetic Palpebral Chrome Upgrade*
 
 ### ✨ Added
