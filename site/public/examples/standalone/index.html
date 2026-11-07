@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>KITTY — plain &lt;script&gt; drop-in example</title>
+  <!--
+    The standalone build needs no bundler, no npm, and no Vue install: Vue is bundled inside.
+    1. Load KITTY's stylesheet (and, optionally, its fonts).
+    2. Load kitty-event-bus-client.iife.js, which defines window.KittyEventBus.
+    3. Call KittyEventBus.mount(element, options).
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+JP:wght@200;300;400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../kitty/style.css">
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #e7e5de; color: #222; }
+    .host-note { padding: 0.75rem 1rem; font-size: 0.85rem; }
+    .host-note a { color: inherit; }
+    /* The host decides how big KITTY is. */
+    #cat { --kitty-height: calc(100dvh - 3.5rem); }
+  </style>
+</head>
+<body>
+  <p class="host-note">
+    This is an ordinary HTML page hosting KITTY with a <code>&lt;script&gt;</code> tag, listening to
+    <strong id="bus">the demo bus</strong>.
+    <a href="../../guides/embedding/">How it works →</a> · <a href="../../guides/live-nats/">Connect to NATS →</a>
+  </p>
+  <div id="cat"></div>
+
+  <script src="../../kitty/kitty-event-bus-client.iife.js"></script>
+  <script type="module">
+    const options = {
+      ttsBaseUrl: '../../kitty/tts/', // where you host the package's dist/tts/ folder
+      ttsProxyUrl: null,              // no live TTS proxy on a static host
+      docsUrl: '../../',
+    };
+
+    // Optional live NATS: ?nats=ws://localhost:8080 (&subject=cncf.>)
+    // The NATS client is loaded as an ES module from a CDN; no bundler needed.
+    const params = new URLSearchParams(location.search);
+    const server = params.get('nats');
+    if (server) {
+      try {
+        const { wsconnect } = await import('https://cdn.jsdelivr.net/npm/@nats-io/nats-core@3.4.0/+esm');
+        const nc = await wsconnect({ servers: server });
+        options.bus = KittyEventBus.natsConnectionBus(nc);
+        options.subject = params.get('subject') || 'cncf.>';
+        document.getElementById('bus').textContent = `live NATS at ${server}`;
+      } catch (e) {
+        document.getElementById('bus').textContent = `the demo bus (could not connect to ${server})`;
+      }
+    }
+
+    KittyEventBus.mount('#cat', options);
+  </script>
+</body>
+</html>

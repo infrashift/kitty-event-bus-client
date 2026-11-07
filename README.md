@@ -11,7 +11,7 @@
 [![Monty Python Physics](https://img.shields.io/badge/Jaw_Hinge-Terry_Gilliam_Certified-orange.svg?style=flat-square)](#key-features--cloud-native-breakthroughs)
 [![Deploy](https://github.com/infrashift/kitty-event-bus-client/actions/workflows/deploy.yml/badge.svg)](https://github.com/infrashift/kitty-event-bus-client/actions/workflows/deploy.yml)
 
-### 🌐 [Launch the NATS Kitty Speaker](https://infrashift.github.io/kitty-event-bus-client/) · [Changelog](CHANGELOG.md) · [Sister Project: PATIENCE](https://github.com/infrashift/patience) · [Infrashift.io](https://infrashift.io)
+### 🌐 [Launch the NATS Kitty Speaker](https://infrashift.github.io/kitty-event-bus-client/speaker/) · [Docs](https://infrashift.github.io/kitty-event-bus-client/) · [Changelog](CHANGELOG.md) · [Sister Project: PATIENCE](https://github.com/infrashift/patience) · [Infrashift.io](https://infrashift.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT_(Meow_In_Transit)-yellow.svg?style=flat-square)](#license)
 
 </div>
@@ -46,7 +46,7 @@ PagerDuty may now shut down its servers. We have solved incident response.
 
 | Subsystem | Technical Specification | Why It Matters |
 | :--- | :--- | :--- |
-| **CNCF CloudEvents v1.0 NATS Consumer** | Subscribes to wildcard NATS JetStream subjects (`cncf.k8s.>`, `cncf.nats.>`, `cncf.flux.>`, `cncf.envoy.>`, `infrashift.ai.>`). | Because reading JSON logs in `kubectl logs -f` is for cowards who fear eye contact. |
+| **CNCF CloudEvents v1.0 NATS Consumer** | Subscribes to `cncf.>` (configurable) on a **live NATS server over WebSocket** or the built-in demo bus, decoding structured and binary-mode CloudEvents. | Because reading JSON logs in `kubectl logs -f` is for cowards who fear eye contact. |
 | **Speech-Synced Bubble Chunking (`chunkMessageForBubble`)** | Splits long CloudEvent payloads into bite-sized $\le 8$-word chunks, highlights each word live, refreshes at exact inter-word acoustic valleys, and auto-dismisses once spoken. | Never overflows the viewport, never overwrites unread text, and vanishes polite seconds after the cat finishes judging your cluster. |
 | **Dual Voice Personas (`Female` & `Male`)** | **Female:** Warm neural `en-US` voice (`Google Neural Female`) + high melodic feline formants.<br>**Male:** Crisp Antipodean/Kiwi `en-NZ` male baritone with authentic vowel chain-shifts (*"evints"*, *"chicks"*, *"fush & chups"*). | Lets you choose whether your production outage is announced with soothing composure or friendly Southern Hemisphere stoicism. |
 | **Tri-Mode Vocalizer (`Both` / `Meow` / `TTS`)** | **Both:** Feline meow preamble + human TTS.<br>**Meow:** Full-bodied Web Audio formant synthesis (*"Mee-aa-o-ww!"*) mapped to syllable vowels.<br>**TTS:** Pure spoken English telemetry. | Zero external `.mp3` files required. Every meow is procedurally synthesized via dual sawtooth/triangle oscillators and `F1`/`F2` bandpass vocal-tract filters. |
@@ -59,34 +59,55 @@ PagerDuty may now shut down its servers. We have solved incident response.
 
 ## 🚀 Installation & Deployment
 
-Built with **[Vue 3](https://vuejs.org)**, **[Vite](https://vite.dev)**, **[Tailwind CSS v4](https://tailwindcss.com)**, and **[Bun](https://bun.sh)**. The core `<KittySpeaker />` component ([`src/components/KittySpeaker.vue`](src/components/KittySpeaker.vue)) is completely self-contained so it can run standalone here or drop directly into an Astro + Starlight site as `<KittySpeaker client:load />`.
+📖 **Full documentation: [infrashift.github.io/kitty-event-bus-client](https://infrashift.github.io/kitty-event-bus-client/)**
+
+This repo is a [Bun](https://bun.sh) workspace with two separately built packages:
+
+| Folder | Package | What |
+| :--- | :--- | :--- |
+| [`kitty/`](kitty/) | `kitty-event-bus-client` | The Vue 3 + Vite + Tailwind v4 app, shipped as an ES module component library (`vue` peer dependency), a standalone `<script>` drop-in, types, and TTS assets. It has no Astro dependency. See [`kitty/README.md`](kitty/README.md). |
+| [`site/`](site/) | `kitty-site` (private) | The [Astro](https://astro.build) + [Starlight](https://starlight.astro.build) docs site. It hosts the package as a `client:only="vue"` island at `/speaker/`, consuming only the package's public `exports`. |
+
+[How it's built](https://infrashift.github.io/kitty-event-bus-client/guides/architecture/) explains the build outputs and how the site interfaces with the package. [Use KITTY in your app](https://infrashift.github.io/kitty-event-bus-client/guides/embedding/) covers Vue, Astro and plain-HTML usage.
 
 ### Quick Start (Local Development)
 Requires [Bun](https://bun.sh) and `make`.
 ```bash
 git clone https://github.com/infrashift/kitty-event-bus-client.git
 cd kitty-event-bus-client
-make install    # Install dependencies with bun
-make dev        # Start live-reloading dev server at http://localhost:4321/
-make build      # Type-check (vue-tsc) + production build → dist/
-make preview    # Serve production build locally
+make install      # Install the whole workspace with bun
+make kitty-dev    # Work on the app alone → http://localhost:4321/
+make dev          # Build the package, then the docs site → http://localhost:4321/kitty-event-bus-client/
+make build        # Package → kitty/dist/, then site → site/dist/
+make preview      # Serve the production site build
+make pack         # Dry-run what would be published to npm
 ```
 
-### Automated Playwright E2E Suite
-A comprehensive **[Playwright](https://playwright.dev)** test suite ([`tests/kitty.spec.ts`](tests/kitty.spec.ts)) validates the app across **6 viewports** (`phone`, `phone-landscape`, `tablet`, `tablet-landscape`, `laptop`, and `desktop`):
-- Verifies zero horizontal or vertical scrolling (`scrollHeight <= clientHeight`, `scrollWidth <= clientWidth`) and a perfectly circular portrait canvas on every screen size.
-- Verifies speech-bubble multi-chunk paging (`1 / 3` → `2 / 3`), real-time jaw opening (`screamOpen > 0.05`), and automatic speech bubble closure after reading completes.
-- Verifies NATS telemetry positioning above the action buttons, `Critical Alert` ocular laser activation, the CloudEvents v1.0 JSON inspector drawer, custom event publishing, `Female`/`Male` voice persona switching, `starlight-theme` persistence, and mouse/touch calibration.
+### 📡 Talk to a Real NATS Server
+KITTY speaks CloudEvents from a live NATS server over WebSocket, in both structured (JSON envelope) and binary (`ce-*` header) modes. [Podman](https://podman.io) is the default; add `CONTAINER=docker` to use Docker.
+```bash
+make nats           # nats-server with WebSocket on ws://localhost:8080 (config: nats/kitty-dev.conf)
+make dev            # then open …/speaker/?nats=ws://localhost:8080
+make nats-publish   # send sample CloudEvents, or…
+make nats-box       # …a nats CLI shell:  nats pub cncf.hello '{"specversion":"1.0",…}'
+make nats-stop
+```
+Step-by-step, with raw `podman run` / `docker run` commands and a production checklist: **[Connect to a live NATS server](https://infrashift.github.io/kitty-event-bus-client/guides/live-nats/)**.
+
+### Automated Playwright E2E Suites
+Two **[Playwright](https://playwright.dev)** suites run across **6 viewports** (`phone`, `phone-landscape`, `tablet`, `tablet-landscape`, `laptop`, and `desktop`):
+- **[`kitty/tests/`](kitty/tests/)** checks the app on its own: no scrolling and a circular canvas on every screen, speech-bubble chunk paging, jaw lip-sync, `Critical Alert` lasers, the CloudEvents inspector, voice personas, `starlight-theme` persistence, and mouse/touch calibration.
+- **[`site/tests/`](site/tests/)** checks every docs page, links, the theme hand-off between docs and app, the `/speaker/` island, the hosted MP3s, the plain-HTML drop-in, that KITTY's CSS never leaks into the docs, and (with `NATS_WS_URL` set) **end-to-end delivery from a real `nats-server`**.
 
 ```bash
 make test-install   # One-time: download Playwright's Chromium
-make test           # Build + run all 36 E2E checks headless across 6 viewports
-make test-ui        # Interactive Playwright UI
-make test-report    # Open the HTML report from the last test run
+make test           # Both suites, headless
+NATS_WS_URL=ws://localhost:8080 make site-test   # include live NATS tests (after `make nats`)
+make test-report    # Open the HTML reports
 ```
 
 ### Hosting on GitHub Pages
-Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): **test → build → deploy**. Pull requests run the full Playwright E2E test matrix. One-time setup in repository settings: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): **test (with a real NATS server) → build package → build site → deploy `site/dist/`**. Pull requests run the full test matrix. One-time setup in repository settings: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 
 ---
 
@@ -109,9 +130,10 @@ We welcome contributions from distributed-systems engineers, NATS maintainers, K
    git checkout -b feat/ louder-kiwi-cat-meows
    ```
 3. **Strict Contribution Guidelines:**
+   - **Package Isolation Mandate:** `kitty/` must never import from `site/` or depend on Astro; the site may only use the package's public `exports`.
    - **Zero Scrollbars Mandate:** Run `make test` before opening a PR. If your change causes a `1px` vertical scrollbar on a `375×667` phone viewport, CI will reject it and the cat will judge you.
    - **Speech-Bubble Etiquette:** The speech bubble must never obscure the cat's eyes or mouth, and must close polite moments after the final chunk is spoken.
-   - **Acoustic Fidelity:** Any modifications to `playCatVocalization()` in [`src/audio/felineSpeechEngine.ts`](src/audio/felineSpeechEngine.ts) must be tested within earshot of a real domestic housecat. If your cat does not immediately perk its ears at the `F1`/`F2` bandpass sweep, recalibrate your $Q$-factors.
+   - **Acoustic Fidelity:** Any modifications to `playCatVocalization()` in [`kitty/src/audio/felineSpeechEngine.ts`](kitty/src/audio/felineSpeechEngine.ts) must be tested within earshot of a real domestic housecat. If your cat does not immediately perk its ears at the `F1`/`F2` bandpass sweep, recalibrate your $Q$-factors.
    - **Ecological Parity:** Keep PR descriptions concise so we don't burn down a third $\frac{1}{100}\text{th}$ of the Amazon rainforest running CI/CD review bots.
 4. **Submit a Pull Request.**
 
@@ -128,7 +150,7 @@ Streaming CNCF CloudEvents into a procedurally animated paper-cutout cat jaw is 
 | ⚡ **The JetStream Laser Tier** | `$100 / mo` | Your custom NATS subject (`io.yourcompany.chaos.critical`) is added to the built-in preset catalog with bespoke ocular plasma particle colors. |
 | 🏢 **Enterprise NOC Wall Mount** | `$10,000 / mo` | Our engineering team flies to your NOC, hooks `kitty-event-bus-client` up to your production Kubernetes cluster, and explains to your CISO why a screaming Kiwi cat is SOC2 compliant. |
 
-👉 **[Become a GitHub Sponsor](https://github.com/sponsors)** or visit **[Infrashift.io](https://infrashift.io)** to inquire about enterprise licensing.
+👉 **[Become a GitHub Sponsor](https://github.com/sponsors/infrashift)** or visit **[Infrashift.io](https://infrashift.io)** to inquire about enterprise licensing.
 
 ---
 

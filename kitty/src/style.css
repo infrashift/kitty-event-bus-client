@@ -1,0 +1,170 @@
+/*
+ * KITTY's stylesheet ships as `kitty-event-bus-client/style.css`.
+ * It is safe to load on any host page: Tailwind's theme + utilities are included, but its
+ * global preflight is NOT. A minimal reset is applied only inside `.kitty-app` instead, so
+ * KITTY never restyles the surrounding site (e.g. an Astro Starlight docs site).
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-serif: "Cormorant Garamond", "Noto Serif JP", serif;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-gallery-light: #f5f4ef;
+  --color-gallery-lightPaper: #eceae3;
+  --color-gallery-dark: #121213;
+  --color-gallery-darkPaper: #1a1a1c;
+}
+
+/* Scoped preflight: the parts of Tailwind's reset KITTY relies on, limited to its own subtree. */
+@layer base {
+  :where(.kitty-app),
+  :where(.kitty-app) *,
+  :where(.kitty-app) ::before,
+  :where(.kitty-app) ::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  :where(.kitty-app) {
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+  :where(.kitty-app) :is(h1, h2, h3, h4, h5, h6) {
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  :where(.kitty-app) a {
+    color: inherit;
+    text-decoration: inherit;
+  }
+  :where(.kitty-app) :is(button, input, select, optgroup, textarea) {
+    font: inherit;
+    font-feature-settings: inherit;
+    font-variation-settings: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    border-radius: 0;
+    background-color: transparent;
+    opacity: 1;
+  }
+  :where(.kitty-app) :is(button, [type='button'], [type='submit']) {
+    appearance: button;
+  }
+  :where(.kitty-app) :is(pre, code, kbd, samp) {
+    font-family: var(--font-mono);
+    font-size: 1em;
+  }
+  :where(.kitty-app) :is(img, svg, video, canvas, audio, iframe, embed, object) {
+    display: block;
+    vertical-align: middle;
+  }
+  :where(.kitty-app) svg.inline {
+    display: inline;
+  }
+  :where(.kitty-app) textarea {
+    resize: vertical;
+  }
+  :where(.kitty-app) ::placeholder {
+    opacity: 1;
+    color: color-mix(in oklab, currentcolor 50%, transparent);
+  }
+  :where(.kitty-app) [hidden]:where(:not([hidden='until-found'])) {
+    display: none !important;
+  }
+}
+
+/* Gallery fine tuning */
+.kitty-app {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Fine subtle film grain overlay */
+.film-grain {
+  background-image: radial-gradient(rgba(0,0,0,0.06) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+.dark .film-grain {
+  background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 0);
+  background-size: 16px 16px;
+}
+
+/* Viewport-fit layout:
+   KITTY is exactly one viewport tall by default (hosts can set --kitty-height to
+   size it inside their own layout). Header and footer take what they need; the
+   kitty canvas is the largest square that fits in the space left over
+   (container query units on .app-main). */
+.kitty-app {
+  position: relative;
+  width: 100%;
+  height: var(--kitty-height, 100vh);
+  height: var(--kitty-height, 100dvh);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "header" "main" "footer";
+  overflow: hidden;
+}
+.app-header {
+  grid-area: header;
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+.app-main {
+  grid-area: main;
+  min-height: 0;
+  container-type: size;
+}
+.clock-frame {
+  --clock-max: 560px;
+  width: min(100cqw, 100cqh, var(--clock-max));
+  aspect-ratio: 1 / 1;
+}
+@media (min-width: 1024px) and (min-height: 960px) {
+  .clock-frame { --clock-max: 720px; }
+}
+@media (min-width: 1600px) and (min-height: 1200px) {
+  .clock-frame { --clock-max: 900px; }
+}
+.app-footer {
+  grid-area: footer;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+#devModePanel { max-height: 24vh; overflow: auto; }
+
+/* Short screens: drop the decorative extras so the cat keeps its size. */
+@media (max-height: 700px) {
+  .legend, .app-subtitle { display: none !important; }
+}
+
+/* Landscape phones: cat on the left at full height, controls on the right. */
+@media (orientation: landscape) and (max-height: 540px) {
+  .kitty-app {
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 44%);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "main header" "main footer";
+  }
+  .app-header { flex-wrap: wrap; gap: 0.4rem; padding-bottom: 0.35rem; }
+  .app-header h1 { font-size: 0.95rem; }
+  .app-header .jp-title { display: none !important; }
+  .app-main { padding: max(0.35rem, env(safe-area-inset-top)) 0.35rem max(0.35rem, env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left)); }
+  .app-footer { align-self: center; gap: 0.5rem; }
+}
+
+/* Touch devices: finger-sized tap targets. */
+@media (pointer: coarse) {
+  .tap { min-width: 40px; min-height: 40px; justify-content: center; }
+  .pill { padding-top: 0.45rem; padding-bottom: 0.45rem; }
+}

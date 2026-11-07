@@ -14,3 +14,8 @@ test-results/
 .env.*
 .DS_Store
 *.log
+
+# Workspace build output
+dist-app/
+.astro/
+site/public/kitty/

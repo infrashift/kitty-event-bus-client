@@ -1,0 +1,74 @@
+---
+title: KITTY, CloudEvent NATS Speaker
+description: An enterprise-grade feline CNCF CloudEvents v1.0 NATS consumer, formant vocalizer & ocular laser incident responder, proudly over-engineered by Infrashift.io.
+template: splash
+editUrl: false
+lastUpdated: false
+hero:
+  title: KITTY
+  tagline: 猫・イベントバス — a tabby cat that consumes your NATS CloudEvents, reads them out loud through a Terry Gilliam paper-cutout jaw, and fires 5,800 K plasma lasers from its eyes when something goes critical.
+  image:
+    file: ../../assets/kitty-hero.png
+    alt: KITTY — a round portrait of a black-and-white cat with green eyes, mouth open mid-sentence, a speech bubble reading a Kubernetes pod-ready event.
+  actions:
+    - text: Launch the Speaker
+      link: /kitty-event-bus-client/speaker/
+      icon: right-arrow
+      variant: primary
+      attrs:
+        target: _self
+    - text: View on GitHub
+      link: https://github.com/infrashift/kitty-event-bus-client
+      icon: github
+      variant: secondary
+    - text: Infrashift.io
+      link: https://infrashift.io
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## The Infrashift.io Cloud-Native Sequel Mandate
+
+Following the historic triumph of [**PATIENCE, Cat Laser Wall Clock**](https://infrashift.github.io/patience/) (in which we burned down 1⁄100th of the Amazon rainforest so a tabby cat's eyeballs could tell you it was `3:15 PM`), our enterprise customers came back with a single, urgent follow-up question:
+
+> *"The cat clock is great, our board of directors is terrified of `:00`, `:15`, `:30`, and `:45`, and productivity is up 400%. **But can the cat consume our Kubernetes NATS JetStream event bus and read `CrashLoopBackOff` alerts out loud in a New Zealand accent?**"*
+
+We reconvened our double-blind global panel of **1,000 SREs, CNCF Ambassadors, and sleep-deprived on-call developers** and asked what humanity needed most from distributed-systems observability:
+
+- ❌ **Self-healing multi-region etcd consensus that never split-brains?** *(1.4% — "Sounds fake, I don't trust it.")*
+- ❌ **A Kubernetes YAML linter that doesn't make grown engineers weep?** *(0.9% — "Whitespace suffering builds character.")*
+- ❌ **A Prometheus setup that doesn't OOM-kill the node at 12 labels?** *(0.2% — "Just buy more RAM.")*
+- ❌ **Touching grass instead of checking Grafana at 3:00 AM?** *(0.0% — "What is 'grass'? Is it a CNCF incubating project?")*
+
+**No.** 97.5% of respondents demanded that their event-driven microservices be read aloud by an unhinged, stop-motion tabby cat with a speech bubble. So we drained Lake Mead by another four inches and **burned down a second 1⁄100th of the Amazon rainforest** to bring you…
+
+### KITTY.
+
+PagerDuty may now shut down its servers. We have solved incident response.
+
+## Cloud-native breakthroughs
+
+<CardGrid>
+  <Card title="CloudEvents v1.0 NATS consumer" icon="rss">
+    Subscribes to `cncf.>` on your NATS server over WebSocket (or a built-in demo bus) and speaks every CloudEvents v1.0 envelope, in structured or binary mode.
+  </Card>
+  <Card title="Gilliam cutout jaw lip-sync" icon="puzzle">
+    The cat's actual chin is sheared from the portrait along a Bézier lip curve and hinged open in sync with every syllable, at 12 fps stop-motion.
+  </Card>
+  <Card title="Female & Kiwi Male voices" icon="comment">
+    Neural TTS with a warm `en-US` Female voice or a New Zealand baritone (*"evints"*, *"fush & chups"*), plus procedurally synthesized meows.
+  </Card>
+  <Card title="Thermonuclear critical alerts" icon="warning">
+    `error` and `critical` events make the irises turn molten crimson and fire dual 5,800 K plasma beams at the canvas rim.
+  </Card>
+</CardGrid>
+
+<CardGrid>
+  <LinkCard title="All features" href="/kitty-event-bus-client/features/" description="The full technical specification." />
+  <LinkCard title="Connect to a live NATS server" href="/kitty-event-bus-client/guides/live-nats/" description="Run NATS with Podman or Docker, publish CloudEvents, and hear them." />
+  <LinkCard title="Use KITTY in your app" href="/kitty-event-bus-client/guides/embedding/" description="Vue component, Astro island, or a plain <script> tag." />
+  <LinkCard title="How it's built" href="/kitty-event-bus-client/guides/architecture/" description="The Vue package, its build outputs, and how this site hosts it." />
+  <LinkCard title="Sister project: PATIENCE" href="https://infrashift.github.io/patience/" description="The cat laser wall clock that started it all." />
+</CardGrid>

@@ -12,6 +12,40 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.5.0`] — 2026-11-06 — *The Island Annexation & Live Bus Liberation Act*
+
+### ✨ Added
+- **Astro + Starlight Docs Site ([`site/`](site/)):** KITTY now has a proper home at [infrashift.github.io/kitty-event-bus-client](https://infrashift.github.io/kitty-event-bus-client/) with Features, Guides, Contributing, Sponsor and License pages, modeled on sister project PATIENCE. The cat lives full-screen at [`/speaker/`](https://infrashift.github.io/kitty-event-bus-client/speaker/) as a `client:only="vue"` **Astro island**, which is the first island in history to be inhabited exclusively by a screaming tabby.
+- **Live NATS Support (`natsConnectionBus`, `decodeNatsCloudEvent`):** `<KittyApp>` takes a pluggable `bus` and `subject`. Point it at a real NATS server over WebSocket (`/speaker/?nats=ws://localhost:8080`) and the cat reads your production CloudEvents in both structured (JSON envelope) and binary (`ce-*` header) modes. Your on-call rotation has been notified and is weeping.
+- **`make nats` / `make nats-box` / `make nats-publish`:** A local NATS server with WebSocket enabled, run with **Podman** (default) or Docker, plus the `nats` CLI and a sample CloudEvent publisher. See [Connect to a live NATS server](https://infrashift.github.io/kitty-event-bus-client/guides/live-nats/).
+- **Installable Package ([`kitty/`](kitty/)):** The app is now the `kitty-event-bus-client` package, built independently of the site: an ES module library (`vue` as a peer dependency), a standalone `<script>` drop-in (`window.KittyEventBus`), typed declarations, the TTS MP3s, and `kittyTtsProxy()` for Vite. Publish-ready, not yet published, because npm hasn't finished its risk assessment.
+
+### 🐛 Fixed
+- **The Silent Welcome (Autoplay Gate):** On first load the cat used to "read" the welcome CloudEvent with its jaw flapping and no voice, because browsers suspend the `AudioContext` and block Web Speech until a user gesture. KITTY now holds the newest event, shows *🔈 Tap anywhere to hear KITTY*, unlocks audio on the first tap, click or key press, and then speaks it properly. A newer event that arrives while waiting replaces the queued one.
+- **Sponsor Link:** "Become a GitHub Sponsor" now goes to [Infrashift.io on GitHub Sponsors](https://github.com/sponsors/infrashift) instead of the generic Sponsors landing page, and the repo has a `FUNDING.yml`.
+
+### 🔄 Changed
+- **Bun Workspace Split:** `src/`, `public/` and `tests/` moved to `kitty/`. The site consumes the package only through its public `exports`, so anything the site can do, you can do too.
+- **Scoped Styles:** KITTY no longer ships Tailwind's global preflight. Its reset applies inside `.kitty-app` only, so embedding the cat won't restyle your page. `body.app` became `.kitty-app`, sized by `--kitty-height`.
+- **Configurable TTS Endpoints:** `ttsBaseUrl` and `ttsProxyUrl` replace the hard-coded `./tts/` and `./api/tts`, so the cat finds its voice under any base path. The live proxy is now opt-in (`null` by default), so static hosts stop asking a nonexistent `/api/tts`.
+- **Read-Only Live Buses (`allowPublish`):** A live NATS bus no longer shows the Send / Critical Alert / AUTO buttons unless you opt in (`&publish=1`). When enabled, demo presets publish *inside* your subscribed subject instead of `cncf.*`, so fake GPU meltdowns never page a real on-call engineer.
+- **`pageTheme`:** Embedded KITTY can keep its dark mode to itself (`pageTheme: false`) instead of redecorating the host page's `<html>`.
+- **Dedicated Test Ports:** Playwright now serves kitty on `:4331` and the site on `:4332`, so tests no longer collide with a dev or preview server on `:4321`/`:4322`.
+- **CI:** The pipeline tests the package and the site separately, runs the live NATS end-to-end tests against a real `nats-server`, and deploys `site/dist/` to GitHub Pages.
+
+---
+
+## [`1.4.0`] — 2026-11-06 — *The Kiwi Default Decree & Static Neural Audio Bundle*
+
+### 🔄 Changed
+- **Defaulted to `Male` (New Zealand Baritone) Voice Persona:** Elevated `Male` (`'nz-male'`) to the default startup voice persona across [`src/App.vue`](src/App.vue), [`src/components/KittySpeaker.vue`](src/components/KittySpeaker.vue), and [`src/audio/felineSpeechEngine.ts`](src/audio/felineSpeechEngine.ts). Upon initial page load, the cat now immediately greets your production cluster with friendly Southern Hemisphere composure (*"Pod catnip-scheduler-7f9b is riddy and purring..."*).
+- **Backed Off SOLA Time-Compression (`transformToNewZealandMaleBuffer`):** Relaxed the SOLA time-compression ratio from `1.26x` (50% overlap) to `1.12x` (75% 4× Hann window overlap) and pitch-shift from `0.78x` to `0.88x` so Kiwi consonants remain crisp and phase-coherent.
+
+### ✨ Added
+- **Pre-Bundled Static Neural TTS Assets (`public/tts/*.mp3`):** Pre-synthesized and hashed (`hashTtsKey`) all 12 Neural TTS audio streams (`en-AU` Kiwi Male and `en-US` Female for every CloudEvent preset) directly into `public/tts/` so static deployments on GitHub Pages play crystal-clear neural speech with zero backend server required.
+
+---
+
 ## [`1.3.0`] — 2026-11-06 — *The Cybernetic Palpebral Chrome Upgrade*
 
 ### ✨ Added

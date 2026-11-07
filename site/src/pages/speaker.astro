@@ -1,0 +1,56 @@
+---
+/**
+ * /speaker/ — the full-screen KITTY app, mounted as an Astro island.
+ *
+ * This page deliberately does NOT use the Starlight layout: KITTY is a one-viewport app.
+ * Everything comes from the kitty-event-bus-client package's public entry points:
+ *   - `KittyApp`            the Vue component, wrapped by ../components/LiveKitty.vue, which adds
+ *                           the optional `?nats=ws://…` live-NATS connection (client-only: it needs
+ *                           window, canvas, Web Audio)
+ *   - `style.css`           KITTY's styles (scoped to .kitty-app; no global reset)
+ *   - `dist/tts/*.mp3`      copied to public/kitty/tts/ by scripts/sync-kitty.ts
+ */
+import LiveKitty from '../components/LiveKitty.vue';
+import 'kitty-event-bus-client/style.css';
+
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <title>KITTY, CloudEvent NATS Speaker</title>
+    <meta name="description" content="KITTY reads CNCF CloudEvents from a NATS bus out loud, with a Terry Gilliam paper-cutout jaw and ocular plasma lasers." />
+    <!-- KITTY doesn't bundle fonts; the host page loads them. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Inter:wght@200;300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+JP:wght@200;300;400&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Apply the Starlight theme choice before first paint (KITTY shares the `starlight-theme` key). -->
+    <script is:inline>
+      (() => {
+        let t = '';
+        try { t = localStorage.getItem('starlight-theme') || ''; } catch {}
+        const dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+      })();
+    </script>
+    <style is:global>
+      body { margin: 0; background: #f5f4ef; }
+      html.dark body { background: #121213; }
+    </style>
+  </head>
+  <body>
+    <LiveKitty
+      client:only="vue"
+      ttsBaseUrl={`${base}kitty/tts/`}
+      ttsProxyUrl={import.meta.env.DEV ? `${base}api/tts` : null}
+      docsUrl={base}
+    />
+  </body>
+</html>

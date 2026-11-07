@@ -1,0 +1,7 @@
+/* Keep wide tables from pushing the page sideways on phones:
+   they scroll inside their own box instead. */
+.sl-markdown-content table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
