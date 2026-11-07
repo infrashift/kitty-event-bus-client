@@ -122,6 +122,7 @@ import { ref, watch, onMounted, onBeforeUnmount, computed } from 'vue';
 import {
   FelineSpeechEngine,
   type VoiceMode,
+  type VoicePersona,
   type MessageChunk,
   type SpeechChunkState,
 } from '../audio/felineSpeechEngine';
@@ -166,6 +167,7 @@ const props = withDefaults(
   defineProps<{
     eventPayload?: KittyEventPayload | null;
     voiceMode?: VoiceMode;
+    voicePersona?: VoicePersona;
     soundEnabled?: boolean;
     isDark?: boolean;
     laserAlertMode?: boolean;
@@ -178,6 +180,7 @@ const props = withDefaults(
   {
     eventPayload: null,
     voiceMode: 'both',
+    voicePersona: 'female',
     soundEnabled: true,
     isDark: false,
     laserAlertMode: false,
@@ -259,7 +262,7 @@ const state = {
   blinkState: 0,
   isBlinking: false,
   blinkProgress: 0,
-  lastBlinkSecond: -1,
+  blinkCooldown: 4.5,
   breathPhase: 0,
   subtleDriftX: 0,
   subtleDriftY: 0,
@@ -535,6 +538,7 @@ function triggerBlink(forced = false) {
   if (state.isBlinking && !forced) return;
   state.isBlinking = true;
   state.blinkProgress = 0;
+  state.blinkCooldown = 4.5 + Math.random() * 2.5;
 }
 
 function resizeCanvas() {
@@ -574,14 +578,14 @@ function render(currentTime: number) {
     speechSample.mouthOpen + (props.laserAlertMode && !speechEngine.isSpeaking ? 0.85 : 0);
   state.screamOpen += (Math.min(1.2, targetMouth) - state.screamOpen) * Math.min(1, dt * 15);
 
-  // 1 Hz Palpebral Tick blink
-  if (seconds !== state.lastBlinkSecond) {
-    state.lastBlinkSecond = seconds;
+  // Relaxed feline blink cycle (~4.5s - 7.0s interval, ~435ms gentle eyelid sweep)
+  state.blinkCooldown -= dt;
+  if (state.blinkCooldown <= 0) {
     triggerBlink(true);
   }
 
   if (state.isBlinking) {
-    state.blinkProgress += dt * 14.5;
+    state.blinkProgress += dt * 7.2;
     if (state.blinkProgress >= Math.PI) {
       state.blinkProgress = 0;
       state.isBlinking = false;
@@ -1714,7 +1718,13 @@ function drawLaserBeamsAndSparks(
  */
 async function speakEvent(
   payload: KittyEventPayload,
-  overrideTiming?: { minChunkMs?: number; msPerWord?: number; maxWordsPerChunk?: number }
+  overrideTiming?: {
+    minChunkMs?: number;
+    msPerWord?: number;
+    maxWordsPerChunk?: number;
+    bubbleCloseDelayMs?: number;
+    voicePersona?: VoicePersona;
+  }
 ) {
   currentSubject.value = payload.natsSubject;
   currentSeverity.value = payload.severity;
@@ -1726,12 +1736,14 @@ async function speakEvent(
 
   await speechEngine.speakMessage(payload.message, {
     voiceMode: props.voiceMode,
+    voicePersona: overrideTiming?.voicePersona ?? props.voicePersona,
     soundEnabled: props.soundEnabled,
     severity: payload.severity,
     maxWordsPerChunk: overrideTiming?.maxWordsPerChunk ?? props.maxWordsPerChunk,
     maxCharsPerChunk: props.maxCharsPerChunk,
     minChunkMs: overrideTiming?.minChunkMs ?? props.minChunkMs,
     msPerWord: overrideTiming?.msPerWord ?? props.msPerWord,
+    bubbleCloseDelayMs: overrideTiming?.bubbleCloseDelayMs,
   });
 
   if (isCriticalOrError) {
@@ -1740,7 +1752,7 @@ async function speakEvent(
 }
 
 function triggerMeow(isMadScream = false) {
-  speechEngine.playCatVocalization(props.soundEnabled, isMadScream);
+  speechEngine.playCatVocalization(props.soundEnabled, isMadScream, 1.0, props.voicePersona);
 }
 
 watch(

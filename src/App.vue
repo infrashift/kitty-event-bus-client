@@ -107,6 +107,7 @@
       ref="kittyRef"
       :event-payload="latestPayload"
       :voice-mode="voiceMode"
+      :voice-persona="voicePersona"
       :sound-enabled="soundEnabled"
       :is-dark="isDarkMode"
       :laser-alert-mode="laserAlertMode"
@@ -118,13 +119,13 @@
 
   <!-- Lower Panel: NATS Event Bus Controls & Voice/Calibration Settings -->
   <footer
-    class="app-footer relative z-10 w-full max-w-2xl mx-auto pt-1 flex flex-col items-center gap-2 sm:gap-2.5 text-xs font-light text-neutral-600 dark:text-neutral-400"
+    class="app-footer relative z-10 w-full max-w-4xl mx-auto pt-1 flex flex-col items-center gap-1.5 sm:gap-2 text-xs font-light text-neutral-600 dark:text-neutral-400"
   >
-    <!-- NATS Consumer Telemetry Readout & Quick Publish Actions -->
+    <!-- NATS Consumer Telemetry Readout (above) & Quick Publish Action Buttons (below) -->
     <div
-      class="w-full flex flex-wrap items-center justify-center gap-2 sm:gap-3 border-b border-neutral-300/40 dark:border-neutral-800/80 pb-2"
+      class="w-full flex flex-col items-center justify-center gap-1 sm:gap-1.5 border-b border-neutral-300/40 dark:border-neutral-800/80 pb-1.5"
     >
-      <div class="flex items-center gap-1.5 min-w-0 max-w-full">
+      <div class="flex items-center justify-center gap-1.5 min-w-0 max-w-full">
         <span
           class="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border border-neutral-300 dark:border-neutral-700 opacity-75 shrink-0"
         >
@@ -132,13 +133,13 @@
         </span>
         <span
           id="activeEventType"
-          class="font-mono text-xs sm:text-sm text-neutral-900 dark:text-neutral-100 truncate max-w-[180px] sm:max-w-[260px]"
+          class="font-mono text-xs sm:text-sm text-neutral-900 dark:text-neutral-100 truncate max-w-[280px] sm:max-w-[460px]"
         >
           {{ latestPayload ? latestPayload.type : 'io.cncf.nats.consumer.listening' }}
         </span>
       </div>
 
-      <div class="flex items-center gap-1.5">
+      <div class="flex flex-wrap items-center justify-center gap-1.5">
         <button
           id="sendEventBtn"
           class="pill px-2.5 py-1 rounded-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-[10px] font-medium tracking-wide hover:opacity-90 transition-opacity cursor-pointer"
@@ -173,15 +174,49 @@
       </div>
     </div>
 
-    <!-- Voice Mode, Laser Alert Mode & Calibration Controls -->
-    <div class="w-full flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+    <!-- Voice Persona, Voice Mode, Laser Alert Mode & Calibration Controls -->
+    <div class="w-full flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5">
+      <!-- Voice Persona Selector Pills (Female / Male) -->
+      <div
+        id="voicePersonaSelector"
+        data-testid="voice-persona-selector"
+        class="inline-flex rounded-full p-0.5 bg-neutral-200/70 dark:bg-neutral-800/80 border border-neutral-300/50 dark:border-neutral-700/50 text-[10px] sm:text-[11px]"
+      >
+        <button
+          id="voicePersonaFemale"
+          class="pill px-2 py-0.5 rounded-full transition-all cursor-pointer"
+          :class="
+            voicePersona === 'female'
+              ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
+              : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+          "
+          title="Smooth Female Voice"
+          @click="selectVoicePersona('female')"
+        >
+          Female
+        </button>
+        <button
+          id="voicePersonaNzMale"
+          class="pill px-2 py-0.5 rounded-full transition-all cursor-pointer"
+          :class="
+            voicePersona === 'nz-male'
+              ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
+              : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+          "
+          title="New Zealand Male Voice"
+          @click="selectVoicePersona('nz-male')"
+        >
+          Male
+        </button>
+      </div>
+
       <!-- Voice Mode Selector Pills -->
       <div
         class="inline-flex rounded-full p-0.5 bg-neutral-200/70 dark:bg-neutral-800/80 border border-neutral-300/50 dark:border-neutral-700/50 text-[10px] sm:text-[11px]"
       >
         <button
           id="voiceBoth"
-          class="pill px-2.5 py-0.5 rounded-full transition-all cursor-pointer"
+          class="pill px-2 py-0.5 rounded-full transition-all cursor-pointer"
           :class="
             voiceMode === 'both'
               ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
@@ -189,11 +224,11 @@
           "
           @click="voiceMode = 'both'"
         >
-          Both (TTS+Meow)
+          Both
         </button>
         <button
           id="voiceMeow"
-          class="pill px-2.5 py-0.5 rounded-full transition-all cursor-pointer"
+          class="pill px-2 py-0.5 rounded-full transition-all cursor-pointer"
           :class="
             voiceMode === 'meow'
               ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
@@ -201,11 +236,11 @@
           "
           @click="voiceMode = 'meow'"
         >
-          Meow-Speak
+          Meow
         </button>
         <button
           id="voiceTts"
-          class="pill px-2.5 py-0.5 rounded-full transition-all cursor-pointer"
+          class="pill px-2 py-0.5 rounded-full transition-all cursor-pointer"
           :class="
             voiceMode === 'tts'
               ? 'bg-white dark:bg-neutral-700 text-neutral-900 dark:text-white shadow-sm'
@@ -213,7 +248,7 @@
           "
           @click="voiceMode = 'tts'"
         >
-          TTS Only
+          TTS
         </button>
       </div>
 
@@ -336,7 +371,7 @@ import {
   type EventSeverity,
   type KittyEventPayload,
 } from './events/cloudevents';
-import type { VoiceMode } from './audio/felineSpeechEngine';
+import type { VoiceMode, VoicePersona } from './audio/felineSpeechEngine';
 
 const THEME_KEY = 'starlight-theme';
 
@@ -344,6 +379,7 @@ const kittyRef = ref<InstanceType<typeof KittySpeaker> | null>(null);
 const isDarkMode = ref(false);
 const soundEnabled = ref(true);
 const voiceMode = ref<VoiceMode>('both');
+const voicePersona = ref<VoicePersona>('female');
 const laserAlertMode = ref(false);
 const isCalibrating = ref(false);
 const devModeOpen = ref(false);
@@ -375,6 +411,15 @@ function setTheme(dark: boolean, persist = true) {
 function toggleSound() {
   soundEnabled.value = !soundEnabled.value;
   if (soundEnabled.value) {
+    kittyRef.value?.triggerMeow(laserAlertMode.value);
+  }
+}
+
+function selectVoicePersona(persona: VoicePersona) {
+  voicePersona.value = persona;
+  if (latestPayload.value) {
+    kittyRef.value?.speakEvent(latestPayload.value, { voicePersona: persona });
+  } else {
     kittyRef.value?.triggerMeow(laserAlertMode.value);
   }
 }

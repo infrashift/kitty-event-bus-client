@@ -1,36 +1,160 @@
-# 🐱📡 KITTY EVENT BUS CLIENT (猫・イベントバス)
+<div align="center">
 
-**An Astro-Island-Ready Vue 3 Feline CNCF CloudEvents Consumer & Formant Vocalizer**  
-*Inspired by [`PATIENCE, Cat Laser Wall Clock`](../patience)*
+# 🐱📡 KITTY, CLOUDEVENT NATS SPEAKER (猫・イベントバス)
 
----
+**An Enterprise-Grade Feline CNCF CloudEvents v1.0 NATS Consumer, Formant Vocalizer & Ocular Laser Incident Responder**  
+*Proudly over-engineered by the Cloud-Native Feline Observability Division at [Infrashift.io](https://infrashift.io)*
 
-## ✨ Overview
+[![Build Status](https://img.shields.io/badge/build-purring-brightgreen.svg?style=flat-square)](#)
+[![CNCF Compliance](https://img.shields.io/badge/CloudEvents-v1.0_Certified_Tabby-blue.svg?style=flat-square)](#key-features--cloud-native-breakthroughs)
+[![Carbon Footprint](https://img.shields.io/badge/Amazon_Rainforest_Consumed-2.00%25_(Cumulative)-critical.svg?style=flat-square)](#the-infrashiftio-cloud-native-sequel-mandate)
+[![Monty Python Physics](https://img.shields.io/badge/Jaw_Hinge-Terry_Gilliam_Certified-orange.svg?style=flat-square)](#key-features--cloud-native-breakthroughs)
+[![Deploy](https://github.com/infrashift/kitty-event-bus-client/actions/workflows/deploy.yml/badge.svg)](https://github.com/infrashift/kitty-event-bus-client/actions/workflows/deploy.yml)
 
-`kitty-event-bus-client` turns the kinetic tabby portrait from `patience` into a live **CNCF CloudEvents v1.0 NATS Consumer & Speaker**. Instead of telling the time, the cat subscribes to a mocked NATS JetStream subject router (`cncf.>`) and vocalizes incoming event messages:
+### 🌐 [Launch the NATS Kitty Speaker](https://infrashift.github.io/kitty-event-bus-client/) · [Sister Project: PATIENCE](https://github.com/infrashift/patience) · [Infrashift.io](https://infrashift.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT_(Meow_In_Transit)-yellow.svg?style=flat-square)](#license)
 
-1. **Chunked Speech Bubble & Speech-Boundary Paging**:
-   - Long CloudEvent `data.message` strings are automatically split into bite-sized chunks (`chunkMessageForBubble`) so the speech bubble never overflows.
-   - Each chunk highlights words live as the cat speaks them and refreshes to the next chunk **when the speech reaches the end of the active chunk** (enforcing a word-count-based reading-time floor so fast speech never overwrites unread text).
-2. **Dual Feline Speech Synthesis (`Both` / `Meow-Speak` / `TTS Only`)**:
-   - **Procedural Feline Formant "Meow-Speak"**: Maps the dominant vowel of every syllable (`a`, `e`, `i`, `o`, `u`) through dual bandpass vocal-tract formant filters (`F1`/`F2`) driven by sawtooth/triangle oscillators + vibrato LFO.
-   - **Web Speech API (`window.speechSynthesis`)**: Speaks the English CloudEvent message aloud with word-boundary tracking.
-3. **Terry Gilliam / Monty Python Cutout Jaw Lip-Sync**:
-   - Real-time 12fps stop-motion jaw hinge (`drawCatNoseAndMouth`) synchronized to each syllable's vowel openness.
-4. **Thermonuclear Ocular Plasma Lasers on Critical CloudEvents**:
-   - High-severity events (`error` / `critical`) trigger a mad-cat yowl/hiss and dual ocular plasma lasers with ember sparks and smoldering rim scorch trails.
-5. **Reusable Vue 3 Island (`<KittySpeaker />`)**:
-   - Self-contained in `src/components/KittySpeaker.vue` so it can be dropped directly into an Astro + Starlight site as `<KittySpeaker client:load />`.
+</div>
 
 ---
 
-## 🚀 Quick Start
+## 🌍 The Infrashift.io Cloud-Native Sequel Mandate
 
-Requires [Bun](https://bun.sh) and `make`:
+Following the historic triumph of [**PATIENCE, Cat Laser Wall Clock**](https://github.com/infrashift/patience)—in which we burned down $\frac{1}{100}\text{th}$ of the Amazon rainforest so a tabby cat's eyeballs could tell you it was `3:15 PM` while scorching your monitor bezel with ocular plasma—our enterprise customers came back with a single, urgent follow-up question:
+
+> *"The cat clock is great, our board of directors is terrified of `:00`, `:15`, `:30`, and `:45`, and productivity is up 400%. **But can the cat consume our Kubernetes NATS JetStream event bus and read `CrashLoopBackOff` alerts out loud in a New Zealand accent?**"*
+
+Before spinning up another liquid-cooled H100 GPU cluster, we reconvened our double-blind global panel of **1,000 Site Reliability Engineers (SREs), CNCF Ambassadors, and sleep-deprived on-call developers** to ask what humanity needed most from distributed systems observability in 2026:
+
+- ❌ **Self-healing multi-region etcd consensus that never split-brains?** *(Polled at 1.4% — "Sounds fake, I don't trust it.")*
+- ❌ **A Kubernetes YAML linter that doesn't make grown engineers weep over two spaces of indentation?** *(Polled at 0.9% — "Whitespace suffering builds character.")*
+- ❌ **A Prometheus setup that doesn't OOM-kill the node when cardinality exceeds 12 labels?** *(Polled at 0.2% — "Just buy more RAM.")*
+- ❌ **Going outside and touching grass instead of checking Grafana at 3:00 AM?** *(Polled at 0.0% — "What is 'grass'? Is it a CNCF incubating project?")*
+
+**No.** 97.5% of respondents demanded that their event-driven microservices architecture be read aloud by an unhinged, stop-motion tabby cat with a speech bubble.
+
+So we drained Lake Mead by another four inches, tripped a regional power grid interconnects breaker, and **burned down a second $\frac{1}{100}\text{th}$ of the Amazon rainforest** to bring you:
+
+### **KITTY, CLOUDEVENT NATS SPEAKER.**
+*(Specifically: A Vue 3 + Web Audio CNCF CloudEvents v1.0 consumer whose jaw unhinges like a 1970s Terry Gilliam paper cutout in real-time lip-sync, who pages long NATS payloads through a comic-book speech bubble synchronized to word boundaries, who speaks in either a warm Female voice or a Kiwi Male baritone, and whose pupils fire 5,800 K thermonuclear plasma lasers whenever a `critical` GPU thermal alert hits the bus.)*
+
+PagerDuty may now shut down its servers. We have solved incident response.
+
+---
+
+## ✨ Key Features & Cloud-Native Breakthroughs
+
+| Subsystem | Technical Specification | Why It Matters |
+| :--- | :--- | :--- |
+| **CNCF CloudEvents v1.0 NATS Consumer** | Subscribes to wildcard NATS JetStream subjects (`cncf.k8s.>`, `cncf.nats.>`, `cncf.flux.>`, `cncf.envoy.>`, `infrashift.ai.>`). | Because reading JSON logs in `kubectl logs -f` is for cowards who fear eye contact. |
+| **Speech-Synced Bubble Chunking (`chunkMessageForBubble`)** | Splits long CloudEvent payloads into bite-sized $\le 8$-word chunks, highlights each word live, refreshes at exact inter-word acoustic valleys, and auto-dismisses once spoken. | Never overflows the viewport, never overwrites unread text, and vanishes polite seconds after the cat finishes judging your cluster. |
+| **Dual Voice Personas (`Female` & `Male`)** | **Female:** Warm neural `en-US` voice (`Google Neural Female`) + high melodic feline formants.<br>**Male:** Crisp Antipodean/Kiwi `en-NZ` male baritone with authentic vowel chain-shifts (*"evints"*, *"chicks"*, *"fush & chups"*). | Lets you choose whether your production outage is announced with soothing composure or friendly Southern Hemisphere stoicism. |
+| **Tri-Mode Vocalizer (`Both` / `Meow` / `TTS`)** | **Both:** Feline meow preamble + human TTS.<br>**Meow:** Full-bodied Web Audio formant synthesis (*"Mee-aa-o-ww!"*) mapped to syllable vowels.<br>**TTS:** Pure spoken English telemetry. | Zero external `.mp3` files required. Every meow is procedurally synthesized via dual sawtooth/triangle oscillators and `F1`/`F2` bandpass vocal-tract filters. |
+| **Terry Gilliam Cutout Jaw Lip-Sync** | Real-time `offCanvas` polygonal chin slicing along `traceUpperLipCurve`, driven at $60\text{ fps}$ by a $10\text{ ms}$ PCM RMS acoustic envelope (or vowel-openness keyframes) and quantized to $12\text{ fps}$ stop-motion. | The cat's actual chin is surgically sheared from the portrait and hinged downward in sync with every syllable to reveal paper-cutout fangs and a pink tongue. |
+| **Thermonuclear `Critical Alert` Lasers** | High-severity CloudEvents (`error` / `critical`) trigger a fierce feline yowl and dual ocular plasma beams ($T \approx 5{,}800\text{ K}$) with ember sparks and smoldering rim scorch trails. | When `pod/kitty-broker-7f9b` enters `CrashLoopBackOff` or an H100 hits `94°C`, the cat's irises turn molten crimson and physically incinerate the canvas frame. |
+| **Live NATS Inspector & Custom Publisher** | Slide-over JSON drawer displaying every consumed `specversion: "1.0"` envelope, 1-click preset triggers, replay buttons, and a custom NATS subject/message publisher. | Type literally anything into `#customMessageInput`, pick `critical` severity, click **Publish to NATS**, and watch the cat scream your custom message while firing eye lasers. |
+| **Unhurried Palpebral Kinematics** | Natural feline blink cadence ($4.5\text{–}7.0\text{ s}$ intervals) with smooth eyelid sweep and dynamic gaze tracking toward the speech bubble. | Unlike `PATIENCE` (which blinked at a relentless 1 Hz clock tick), `KITTY` blinks at a relaxed, judgmental lounge-cat pace. |
+
+---
+
+## 🚀 Installation & Deployment
+
+Built with **[Vue 3](https://vuejs.org)**, **[Vite](https://vite.dev)**, **[Tailwind CSS v4](https://tailwindcss.com)**, and **[Bun](https://bun.sh)**. The core `<KittySpeaker />` component ([`src/components/KittySpeaker.vue`](src/components/KittySpeaker.vue)) is completely self-contained so it can run standalone here or drop directly into an Astro + Starlight site as `<KittySpeaker client:load />`.
+
+### Quick Start (Local Development)
+Requires [Bun](https://bun.sh) and `make`.
+```bash
+git clone https://github.com/infrashift/kitty-event-bus-client.git
+cd kitty-event-bus-client
+make install    # Install dependencies with bun
+make dev        # Start live-reloading dev server at http://localhost:4321/
+make build      # Type-check (vue-tsc) + production build → dist/
+make preview    # Serve production build locally
+```
+
+### Automated Playwright E2E Suite
+A comprehensive **[Playwright](https://playwright.dev)** test suite ([`tests/kitty.spec.ts`](tests/kitty.spec.ts)) validates the app across **6 viewports** (`phone`, `phone-landscape`, `tablet`, `tablet-landscape`, `laptop`, and `desktop`):
+- Verifies zero horizontal or vertical scrolling (`scrollHeight <= clientHeight`, `scrollWidth <= clientWidth`) and a perfectly circular portrait canvas on every screen size.
+- Verifies speech-bubble multi-chunk paging (`1 / 3` → `2 / 3`), real-time jaw opening (`screamOpen > 0.05`), and automatic speech bubble closure after reading completes.
+- Verifies NATS telemetry positioning above the action buttons, `Critical Alert` ocular laser activation, the CloudEvents v1.0 JSON inspector drawer, custom event publishing, `Female`/`Male` voice persona switching, `starlight-theme` persistence, and mouse/touch calibration.
 
 ```bash
-make install    # Install dependencies with bun
-make dev        # Start live-reload dev server at http://localhost:4321/
-make build      # Type-check and build production bundle into dist/
-make test       # Build and run Playwright responsive E2E test suite
+make test-install   # One-time: download Playwright's Chromium
+make test           # Build + run all 36 E2E checks headless across 6 viewports
+make test-ui        # Interactive Playwright UI
+make test-report    # Open the HTML report from the last test run
+```
+
+### Hosting on GitHub Pages
+Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): **test → build → deploy**. Pull requests run the full Playwright E2E test matrix. One-time setup in repository settings: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+
+---
+
+## 🛠️ Interactive Cranial Calibration & Dev Mode
+
+Every feline's facial geometry is unique. Clicking **Calibrate Eyes and Mouth** in the lower control bar unlocks the live anatomical alignment HUD:
+- **Drag** the **Left Eye**, **Right Eye**, or **Mouth / Jaw Hinge** handles directly on the portrait.
+- **Scroll Wheel** (or **two-finger pinch** on mobile/tablet) over any handle to scale its horizontal and vertical radii ($r_x, r_y$).
+- Enable the **Dev Mode** checkbox to inspect and copy the live `SUBJECTS[0]` coordinate JSON snippet in real time.
+
+---
+
+## 🤝 How to Contribute
+
+We welcome contributions from distributed-systems engineers, NATS maintainers, Kiwi linguists, Monty Python animators, and remorseful AI researchers.
+
+1. **Fork the Repository** (and star it so the CNCF Technical Oversight Committee notices us).
+2. **Create a Feature Branch:**
+   ```bash
+   git checkout -b feat/ louder-kiwi-cat-meows
+   ```
+3. **Strict Contribution Guidelines:**
+   - **Zero Scrollbars Mandate:** Run `make test` before opening a PR. If your change causes a `1px` vertical scrollbar on a `375×667` phone viewport, CI will reject it and the cat will judge you.
+   - **Speech-Bubble Etiquette:** The speech bubble must never obscure the cat's eyes or mouth, and must close polite moments after the final chunk is spoken.
+   - **Acoustic Fidelity:** Any modifications to `playCatVocalization()` in [`src/audio/felineSpeechEngine.ts`](src/audio/felineSpeechEngine.ts) must be tested within earshot of a real domestic housecat. If your cat does not immediately perk its ears at the `F1`/`F2` bandpass sweep, recalibrate your $Q$-factors.
+   - **Ecological Parity:** Keep PR descriptions concise so we don't burn down a third $\frac{1}{100}\text{th}$ of the Amazon rainforest running CI/CD review bots.
+4. **Submit a Pull Request.**
+
+---
+
+## 💖 Sponsor This Project
+
+Streaming CNCF CloudEvents into a procedurally animated paper-cutout cat jaw is not cheap. By sponsoring **Infrashift.io's Open Feline Observability Initiative**, your funds go directly toward:
+
+| Sponsorship Tier | Monthly Contribution | Perks & Carbon Offset |
+| :--- | :---: | :--- |
+| 🌱 **The Second Sapling Guilt Tier** | `$5 / mo` | We plant **two (2) ferns** in the Amazon basin to offset both `patience` and `kitty-event-bus-client`. |
+| 🥫 **The Churu & Pâté SLA Tier** | `$25 / mo` | Keeps our on-call QA department (three very judgmental studio tabbies) supplied with liquid cat treats during SEV-1 incidents. |
+| ⚡ **The JetStream Laser Tier** | `$100 / mo` | Your custom NATS subject (`io.yourcompany.chaos.critical`) is added to the built-in preset catalog with bespoke ocular plasma particle colors. |
+| 🏢 **Enterprise NOC Wall Mount** | `$10,000 / mo` | Our engineering team flies to your NOC, hooks `kitty-event-bus-client` up to your production Kubernetes cluster, and explains to your CISO why a screaming Kiwi cat is SOC2 compliant. |
+
+👉 **[Become a GitHub Sponsor](https://github.com/sponsors)** or visit **[Infrashift.io](https://infrashift.io)** to inquire about enterprise licensing.
+
+---
+
+## 📜 License
+
+Distributed under the **MIT License (Meow In Transit)** — see below for full legal terms:
+
+```text
+MIT License
+
+Copyright (c) 2026 Infrashift.io & The Global Panel of 1,000 Sleep-Deprived SREs
+
+Permission is hereby granted, free of charge, to any person or feline obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+2. Should the Software consume a critical CloudEvent at 03:00 AM, scream in a New Zealand
+   accent, and scorch your NOC monitor bezel with ocular plasma, Infrashift.io assumes
+   zero liability.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
 ```

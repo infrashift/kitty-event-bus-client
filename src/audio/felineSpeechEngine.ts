@@ -1,6 +1,7 @@
 import type { EventSeverity } from '../events/cloudevents';
 
 export type VoiceMode = 'both' | 'meow' | 'tts';
+export type VoicePersona = 'female' | 'nz-male';
 
 export interface MessageChunk {
   index: number;
@@ -42,18 +43,27 @@ export interface SpeechChunkState {
 }
 
 /**
- * Formant filter table for smooth feminine feline vowel vocalization:
+ * Formant filter tables for each voice persona (`female`, `nz-male`):
  * Maps English vowel classes to F1/F2 bandpass center frequencies and jaw openness.
  */
-const VOWEL_FORMANTS: Record<
-  'a' | 'e' | 'i' | 'o' | 'u',
-  { f1: number; f2: number; open: number }
+const PERSONA_VOWEL_FORMANTS: Record<
+  VoicePersona,
+  Record<'a' | 'e' | 'i' | 'o' | 'u', { f1: number; f2: number; open: number }>
 > = {
-  a: { f1: 1280, f2: 2120, open: 0.92 }, // Warm open "aa"
-  e: { f1: 880, f2: 2420, open: 0.72 },  // Mid-front "eh"
-  i: { f1: 610, f2: 2680, open: 0.50 },  // Soft high "ee"
-  o: { f1: 810, f2: 1460, open: 0.82 },  // Rounded "oh"
-  u: { f1: 560, f2: 1260, open: 0.55 },  // Gentle "oo"
+  female: {
+    a: { f1: 1280, f2: 2120, open: 0.92 }, // Warm open "aa"
+    e: { f1: 880, f2: 2420, open: 0.72 },  // Mid-front "eh"
+    i: { f1: 610, f2: 2680, open: 0.50 },  // Soft high "ee"
+    o: { f1: 810, f2: 1460, open: 0.82 },  // Rounded "oh"
+    u: { f1: 560, f2: 1260, open: 0.55 },  // Gentle "oo"
+  },
+  'nz-male': {
+    a: { f1: 640, f2: 1380, open: 0.88 }, // Fronted Kiwi TRAP/START vowel
+    e: { f1: 390, f2: 2080, open: 0.68 }, // Raised Kiwi DRESS vowel (closer to "i")
+    i: { f1: 510, f2: 1520, open: 0.56 }, // Centralized Kiwi KIT schwa ("fush/chups")
+    o: { f1: 460, f2: 960, open: 0.80 },  // Rounded Commonwealth "oh"
+    u: { f1: 350, f2: 1450, open: 0.58 }, // Fronted Kiwi GOOSE "oo"
+  },
 };
 
 /**
@@ -150,20 +160,32 @@ export function chunkMessageForBubble(
  */
 export function buildMessageSyllableTimeline(
   chunks: MessageChunk[],
-  options: { severity?: EventSeverity; minChunkMs?: number } = {}
+  options: { severity?: EventSeverity; minChunkMs?: number; voicePersona?: VoicePersona } = {}
 ): {
   syllables: SyllableKeyframe[];
   chunkEndTimesMs: number[];
   totalDurationMs: number;
 } {
   const severity = options.severity ?? 'info';
+  const persona = options.voicePersona ?? 'female';
+  const formants = PERSONA_VOWEL_FORMANTS[persona];
   const syllables: SyllableKeyframe[] = [];
   const chunkEndTimesMs: number[] = [];
 
   let cursorMs = 0;
   const isUrgent = severity === 'critical' || severity === 'error';
-  // Warm, feminine melodic fundamental pitch (around A4–C5)
-  const basePitch = isUrgent ? 520 : severity === 'warning' ? 480 : 440;
+  const basePitch =
+    persona === 'female'
+      ? isUrgent
+        ? 520
+        : severity === 'warning'
+          ? 480
+          : 440
+      : isUrgent
+        ? 172
+        : severity === 'warning'
+          ? 152
+          : 138;
 
   for (let cIdx = 0; cIdx < chunks.length; cIdx++) {
     const chunk = chunks[cIdx];
@@ -188,16 +210,24 @@ export function buildMessageSyllableTimeline(
             ? firstChar
             : 'e';
 
-        const formant = VOWEL_FORMANTS[vowel];
+        const formant = formants[vowel];
         const isStressed = s === 0;
         const endsExclaim = rawWord.endsWith('!');
         const endsQuestion = rawWord.endsWith('?');
 
-        // Gentle, musical prosody curve across the phrase
         const phraseProgress = wordIdxInChunk / Math.max(1, chunk.words.length - 1);
-        const phraseArch = Math.sin(phraseProgress * Math.PI) * 28;
-        const inflection = endsQuestion ? 60 : endsExclaim ? 40 : isStressed ? 18 : -10;
-        const pitchHz = Math.max(360, Math.min(680, basePitch + phraseArch + inflection));
+        let pitchHz: number;
+        if (persona === 'female') {
+          const phraseArch = Math.sin(phraseProgress * Math.PI) * 28;
+          const inflection = endsQuestion ? 60 : endsExclaim ? 40 : isStressed ? 18 : -10;
+          pitchHz = Math.max(360, Math.min(680, basePitch + phraseArch + inflection));
+        } else {
+          // Kiwi male cadence with characteristic subtle high-rising terminal lift at phrase end
+          const kiwiTerminalLift = phraseProgress > 0.72 ? (phraseProgress - 0.72) * 55 : 0;
+          const phraseArch = Math.sin(phraseProgress * Math.PI) * 14 + kiwiTerminalLift;
+          const inflection = endsQuestion ? 28 : endsExclaim ? 22 : isStressed ? 10 : -5;
+          pitchHz = Math.max(105, Math.min(240, basePitch + phraseArch + inflection));
+        }
 
         const durMs = isStressed ? 145 : 115;
         // Very small inter-syllable gap so words glide smoothly into one another
@@ -275,9 +305,41 @@ export function normalizeTextForSmoothSpeech(rawText: string): string {
 }
 
 /**
+ * Applies subtle, authentic New Zealand English (Kiwi) phonetic vowel shifts
+ * (the characteristic KIT -> schwa/u and DRESS -> i chain shift) for spoken TTS
+ * while keeping the visual speech bubble text 100% untouched.
+ */
+export function applyNewZealandAccentPhonetics(spokenText: string): string {
+  return spokenText
+    .replace(/\bevents\b/gi, 'evints')
+    .replace(/\bevent\b/gi, 'evint')
+    .replace(/\bready\b/gi, 'riddy')
+    .replace(/\bcheck\b/gi, 'chick')
+    .replace(/\bmesh\b/gi, 'mish')
+    .replace(/\bJet\b/g, 'Jit')
+    .replace(/\bjet\b/g, 'jit')
+    .replace(/\bset\b/gi, 'sit')
+    .replace(/\btest\b/gi, 'tist')
+    .replace(/\byes\b/gi, 'yiss')
+    .replace(/\bseven\b/gi, 'siven')
+    .replace(/\bbetter\b/gi, 'bitter')
+    .replace(/\bnetwork\b/gi, 'nitwork')
+    .replace(/\bmemory\b/gi, 'mimory')
+    .replace(/\bthreshold\b/gi, 'thrishold')
+    .replace(/\bdetected\b/gi, 'deticted')
+    .replace(/\bmessage\b/gi, 'missage')
+    .replace(/\bsystem\b/gi, 'sustem')
+    .replace(/\bcritical\b/gi, 'crutical')
+    .replace(/\bwhisker\b/gi, 'whusker')
+    .replace(/\blimit\b/gi, 'lumut')
+    .replace(/\bsix\b/gi, 'sux')
+    .replace(/\bfish\b/gi, 'fush')
+    .replace(/\bchips\b/gi, 'chups');
+}
+
+/**
  * Selects the clearest, most natural female English voice from the browser's
- * `window.speechSynthesis.getVoices()` list, prioritizing Neural / Natural / Online
- * and Google / Apple high-clarity female voices over local formant voices.
+ * `window.speechSynthesis.getVoices()` list.
  */
 export function selectPreferredFemaleVoice(
   voices: SpeechSynthesisVoice[]
@@ -287,7 +349,6 @@ export function selectPreferredFemaleVoice(
   const englishVoices = voices.filter((v) => /^en(-|_|$)/i.test(v.lang));
   const pool = englishVoices.length > 0 ? englishVoices : voices;
 
-  // Tier 1: Neural / Natural / Online / Premium Female Voices
   const tier1NeuralFemale = [
     /Ava.*(Natural|Neural|Online|Premium|Enhanced)/i,
     /Aria.*(Natural|Neural|Online)/i,
@@ -306,7 +367,6 @@ export function selectPreferredFemaleVoice(
     if (match) return match;
   }
 
-  // Tier 2: Clear OS Female Voices
   const tier2FemalePatterns = [
     /Microsoft Aria/i,
     /Microsoft Jenny/i,
@@ -321,7 +381,7 @@ export function selectPreferredFemaleVoice(
     /Tessa/i,
     /Microsoft Zira/i,
     /Martha/i,
-    /\+f[2345]/i, // espeak-ng female voice variants on Linux
+    /\+f[2345]/i,
     /female/i,
     /woman/i,
   ];
@@ -331,11 +391,118 @@ export function selectPreferredFemaleVoice(
     if (match) return match;
   }
 
-  // Tier 3: Prefer any non-espeak natural English voice
   const naturalEn = pool.find((v) => /^en-(US|GB|AU|IE)/i.test(v.lang) && !/espeak/i.test(v.name));
   if (naturalEn) return naturalEn;
 
   return pool[0] ?? null;
+}
+
+/**
+ * Selects the deepest, gruffest male English voice from the browser's
+ * `window.speechSynthesis.getVoices()` list for Tom Waits offline fallback.
+ */
+export function selectPreferredGruffMaleVoice(
+  voices: SpeechSynthesisVoice[]
+): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null;
+
+  const englishVoices = voices.filter((v) => /^en(-|_|$)/i.test(v.lang));
+  const pool = englishVoices.length > 0 ? englishVoices : voices;
+
+  const tier1Male = [
+    /Christopher.*(Natural|Neural|Online)/i,
+    /Eric.*(Natural|Neural|Online)/i,
+    /Guy.*(Natural|Neural|Online)/i,
+    /Davis.*(Natural|Neural|Online)/i,
+    /Steffan.*(Natural|Neural|Online)/i,
+    /Ryan.*(Natural|Neural|Online)/i,
+    /Google UK English Male/i,
+    /(Natural|Neural|Premium|Enhanced).*(Male|Christopher|Eric|Guy|Davis|Daniel|Aaron|Fred)/i,
+  ];
+
+  for (const pattern of tier1Male) {
+    const match = pool.find((v) => pattern.test(v.name));
+    if (match) return match;
+  }
+
+  const tier2MalePatterns = [
+    /Microsoft Christopher/i,
+    /Microsoft Eric/i,
+    /Microsoft Guy/i,
+    /Microsoft Davis/i,
+    /Microsoft David/i,
+    /Microsoft Mark/i,
+    /Daniel/i,
+    /Alex/i,
+    /Fred/i,
+    /Aaron/i,
+    /Arthur/i,
+    /Oliver/i,
+    /\+m[12345]/i,
+    /\bmale\b/i,
+    /\bman\b/i,
+  ];
+
+  for (const pattern of tier2MalePatterns) {
+    const match = pool.find((v) => pattern.test(v.name));
+    if (match) return match;
+  }
+
+  const naturalEn = pool.find((v) => /^en-(US|GB|AU|IE)/i.test(v.lang));
+  if (naturalEn) return naturalEn;
+
+  return pool[0] ?? null;
+}
+
+/**
+ * Selects a New Zealand (`en-NZ`), Australian (`en-AU`), or Commonwealth (`en-GB`)
+ * male English voice from the browser's `window.speechSynthesis.getVoices()` list.
+ */
+export function selectPreferredNewZealandMaleVoice(
+  voices: SpeechSynthesisVoice[]
+): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null;
+
+  const englishVoices = voices.filter((v) => /^en(-|_|$)/i.test(v.lang));
+  const pool = englishVoices.length > 0 ? englishVoices : voices;
+
+  // Tier 1: Explicit New Zealand or Australian Male Voices
+  const tier1Kiwi = [
+    /Mitchell/i, // Microsoft Mitchell (en-NZ Male)
+    /William.*(Natural|Neural|Online)/i, // Microsoft William (en-AU Male)
+    /Darren/i,
+    /Gordon/i,
+    /Lee/i,
+    /James.*(AU|NZ)/i,
+  ];
+  for (const pattern of tier1Kiwi) {
+    const match = pool.find((v) => pattern.test(v.name));
+    if (match) return match;
+  }
+
+  // Tier 2: Any en-NZ or en-AU voice
+  const nzMatch = pool.find((v) => /^en[-_]NZ/i.test(v.lang));
+  if (nzMatch) return nzMatch;
+  const auMatch = pool.find((v) => /^en[-_]AU/i.test(v.lang));
+  if (auMatch) return auMatch;
+
+  // Tier 3: Commonwealth (en-GB) Male Voices
+  const gbMale = pool.find(
+    (v) =>
+      /^en[-_]GB/i.test(v.lang) &&
+      /(Male|Ryan|Thomas|George|Daniel|Oliver|Arthur)/i.test(v.name)
+  );
+  if (gbMale) return gbMale;
+
+  return selectPreferredGruffMaleVoice(pool);
+}
+
+export function selectPreferredVoiceForPersona(
+  voices: SpeechSynthesisVoice[],
+  persona: VoicePersona
+): SpeechSynthesisVoice | null {
+  if (persona === 'female') return selectPreferredFemaleVoice(voices);
+  return selectPreferredNewZealandMaleVoice(voices);
 }
 
 interface NeuralTimelineAlignment {
@@ -372,7 +539,7 @@ export class FelineSpeechEngine {
   public chunkEndTimesMs: number[] = [];
   public manualRoarBurst = 0;
   public smoothedMouthOpen = 0;
-  public selectedVoiceName = 'Neural Female TTS';
+  public selectedVoiceName = 'Google Neural Female (en-US)';
 
   // Active Neural AudioBuffer playback state (for real-time acoustic RMS lip-sync)
   private activeNeuralAlignment: NeuralTimelineAlignment | null = null;
@@ -450,20 +617,24 @@ export class FelineSpeechEngine {
     this.currentRunId += 1;
     this.stopActiveAudio();
     this.isSpeaking = false;
+    this.chunks = [];
+    this.activeChunkIndex = 0;
+    this.activeWordIndex = 0;
     this.timelineSyllables = [];
     this.ttsBoundaryActive = false;
     this.notifyState();
   }
 
   /**
-   * Plays a strong, unmistakable synthesized feline vocalization (modeled on `../patience`):
-   * - If `isMadScream` is true: fierce, vibrating mad-cat yowl + hiss
-   * - Otherwise: strong, expressive double-formant melodic cat "Mee-aa-o-ww!"
+   * Plays a strong, unmistakable synthesized feline vocalization tailored to `voicePersona`:
+   * - `female`: classic melodic high-formant cat "Mee-aa-o-ww!"
+   * - `nz-male`: warm, friendly Kiwi tomcat baritone meow
    */
   public playCatVocalization(
     soundEnabled: boolean,
     isMadScream = false,
-    durationScale = 1.0
+    durationScale = 1.0,
+    voicePersona: VoicePersona = 'female'
   ): void {
     this.manualRoarBurst = 1.0;
     if (!soundEnabled) return;
@@ -474,14 +645,14 @@ export class FelineSpeechEngine {
       durationSec: (isMadScream ? 1.15 : 0.82) * durationScale,
       isMadScream,
       pitchScale: 1.0,
-      peakGain: isMadScream ? 0.28 : 0.26,
+      peakGain: isMadScream ? 0.30 : 0.27,
+      voicePersona,
     });
   }
 
   /**
-   * Synthesizes a single strong, full-bodied cat meow ("Mee-aa-o-ww!") or fierce yowl
-   * at `startTime` on the Web Audio graph using dual sawtooth+triangle vocal cords,
-   * larynx vibrato LFO, and resonant M-EE-AA-O-W bandpass formant sweeps.
+   * Synthesizes a single strong cat meow or fierce yowl at `startTime` on the Web Audio graph,
+   * adapting pitch and vocal-tract formants to the active `voicePersona`.
    */
   private triggerSingleStrongMeow(
     actx: AudioContext,
@@ -492,47 +663,49 @@ export class FelineSpeechEngine {
       pitchScale?: number;
       inflection?: 'statement' | 'question' | 'exclaim';
       peakGain?: number;
+      voicePersona?: VoicePersona;
     }
   ): void {
+    const persona = opts.voicePersona ?? 'female';
     const dur = Math.max(0.38, opts.durationSec);
     const isMad = Boolean(opts.isMadScream);
     const pScale = opts.pitchScale ?? 1.0;
-    const peakGain = opts.peakGain ?? (isMad ? 0.28 : 0.26);
+    const peakGain = opts.peakGain ?? (isMad ? 0.32 : 0.28);
     const inflection = opts.inflection ?? 'statement';
 
-    // Feline vocal cord source: sawtooth + slightly detuned triangle for authentic cat rasp & body
+    // Smooth melodic feline meow (higher pitched for 'female', warm baritone tomcat for 'nz-male')
+    const personaPitchMult = persona === 'nz-male' ? 0.52 : 1.0;
+    const personaFormantMult = persona === 'nz-male' ? 0.68 : 1.0;
+
     const osc1 = actx.createOscillator();
     const osc2 = actx.createOscillator();
     osc1.type = 'sawtooth';
     osc2.type = 'triangle';
 
-    // Larynx vibrato LFO
     const lfo = actx.createOscillator();
     const lfoGain = actx.createGain();
-    lfo.frequency.setValueAtTime(isMad ? 25 : 7.8, startTime);
-    lfoGain.gain.setValueAtTime(isMad ? 40 : 13, startTime);
+    lfo.frequency.setValueAtTime(isMad ? 24 : 7.5, startTime);
+    lfoGain.gain.setValueAtTime((isMad ? 36 : 11) * personaPitchMult, startTime);
     lfo.connect(lfoGain);
     lfoGain.connect(osc1.frequency);
     lfoGain.connect(osc2.frequency);
 
-    // Feline Vocal Tract Formant Filters (High-Q resonant nasal/oral cavities)
     const formant1 = actx.createBiquadFilter();
     formant1.type = 'bandpass';
-    formant1.Q.setValueAtTime(isMad ? 3.6 : 5.2, startTime);
+    formant1.Q.setValueAtTime(isMad ? 3.5 : 4.8, startTime);
 
     const formant2 = actx.createBiquadFilter();
     formant2.type = 'bandpass';
-    formant2.Q.setValueAtTime(isMad ? 3.5 : 4.0, startTime);
+    formant2.Q.setValueAtTime(isMad ? 3.4 : 3.8, startTime);
 
     const masterGain = actx.createGain();
 
     if (isMad) {
-      // Fierce Mad-Cat Yowl ("YAA-OOWW-RRR!") + Hiss
-      const startF = 520 * pScale;
-      const peak1F = 980 * pScale;
-      const midF = 760 * pScale;
-      const peak2F = 1040 * pScale;
-      const endF = 440 * pScale;
+      const startF = 520 * pScale * personaPitchMult;
+      const peak1F = 980 * pScale * personaPitchMult;
+      const midF = 760 * pScale * personaPitchMult;
+      const peak2F = 1040 * pScale * personaPitchMult;
+      const endF = 440 * pScale * personaPitchMult;
 
       osc1.frequency.setValueAtTime(startF, startTime);
       osc1.frequency.exponentialRampToValueAtTime(peak1F, startTime + dur * 0.18);
@@ -540,56 +713,56 @@ export class FelineSpeechEngine {
       osc1.frequency.exponentialRampToValueAtTime(peak2F, startTime + dur * 0.76);
       osc1.frequency.exponentialRampToValueAtTime(endF, startTime + dur);
 
-      osc2.frequency.setValueAtTime(startF + 4, startTime);
-      osc2.frequency.exponentialRampToValueAtTime(peak1F + 6, startTime + dur * 0.18);
-      osc2.frequency.exponentialRampToValueAtTime(endF + 4, startTime + dur);
+      osc2.frequency.setValueAtTime(startF + 3, startTime);
+      osc2.frequency.exponentialRampToValueAtTime(peak1F + 5, startTime + dur * 0.18);
+      osc2.frequency.exponentialRampToValueAtTime(endF + 3, startTime + dur);
 
-      formant1.frequency.setValueAtTime(900, startTime);
-      formant1.frequency.exponentialRampToValueAtTime(1880, startTime + dur * 0.24);
-      formant1.frequency.exponentialRampToValueAtTime(1120, startTime + dur * 0.72);
-      formant1.frequency.exponentialRampToValueAtTime(660, startTime + dur);
+      formant1.frequency.setValueAtTime(900 * personaFormantMult, startTime);
+      formant1.frequency.exponentialRampToValueAtTime(1880 * personaFormantMult, startTime + dur * 0.24);
+      formant1.frequency.exponentialRampToValueAtTime(1120 * personaFormantMult, startTime + dur * 0.72);
+      formant1.frequency.exponentialRampToValueAtTime(660 * personaFormantMult, startTime + dur);
 
-      formant2.frequency.setValueAtTime(2200, startTime);
-      formant2.frequency.exponentialRampToValueAtTime(3200, startTime + dur * 0.28);
-      formant2.frequency.exponentialRampToValueAtTime(1700, startTime + dur);
-
-      masterGain.gain.setValueAtTime(0.001, startTime);
-      masterGain.gain.linearRampToValueAtTime(peakGain, startTime + Math.min(0.05, dur * 0.1));
-      masterGain.gain.setValueAtTime(peakGain * 0.92, startTime + dur * 0.72);
-      masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      formant2.frequency.setValueAtTime(2200 * personaFormantMult, startTime);
+      formant2.frequency.exponentialRampToValueAtTime(3200 * personaFormantMult, startTime + dur * 0.28);
+      formant2.frequency.exponentialRampToValueAtTime(1700 * personaFormantMult, startTime + dur);
     } else {
-      // Strong, unmistakable Cat Meow ("MEE-AA-OO-WW!")
-      const startF = 465 * pScale;
-      const peakF = (inflection === 'exclaim' ? 860 : inflection === 'question' ? 830 : 795) * pScale;
-      const sustainF = (inflection === 'question' ? 760 : 655) * pScale;
-      const endF = (inflection === 'question' ? 590 : 385) * pScale;
+      // For 'nz-male', add a friendly Kiwi upward lilt at the end of the meow
+      const startF = 465 * pScale * personaPitchMult;
+      const peakF =
+        (inflection === 'exclaim' ? 860 : inflection === 'question' ? 830 : 795) *
+        pScale *
+        personaPitchMult;
+      const sustainF = (inflection === 'question' ? 760 : 655) * pScale * personaPitchMult;
+      const endF =
+        (persona === 'nz-male' ? 690 : inflection === 'question' ? 590 : 385) *
+        pScale *
+        personaPitchMult;
 
       osc1.frequency.setValueAtTime(startF, startTime);
       osc1.frequency.exponentialRampToValueAtTime(peakF, startTime + dur * 0.26);
       osc1.frequency.exponentialRampToValueAtTime(sustainF, startTime + dur * 0.62);
       osc1.frequency.exponentialRampToValueAtTime(endF, startTime + dur);
 
-      osc2.frequency.setValueAtTime(startF + 3.5, startTime);
-      osc2.frequency.exponentialRampToValueAtTime(peakF + 4.5, startTime + dur * 0.26);
-      osc2.frequency.exponentialRampToValueAtTime(sustainF + 3.5, startTime + dur * 0.62);
-      osc2.frequency.exponentialRampToValueAtTime(endF + 2.5, startTime + dur);
+      osc2.frequency.setValueAtTime(startF + 3, startTime);
+      osc2.frequency.exponentialRampToValueAtTime(peakF + 4, startTime + dur * 0.26);
+      osc2.frequency.exponentialRampToValueAtTime(sustainF + 3, startTime + dur * 0.62);
+      osc2.frequency.exponentialRampToValueAtTime(endF + 2, startTime + dur);
 
-      // Classic feline mouth opening & closing vowel sweep: "M-ee-aa-o-w"
-      formant1.frequency.setValueAtTime(650, startTime);
-      formant1.frequency.exponentialRampToValueAtTime(1600, startTime + dur * 0.28);
-      formant1.frequency.exponentialRampToValueAtTime(1180, startTime + dur * 0.65);
-      formant1.frequency.exponentialRampToValueAtTime(780, startTime + dur);
+      formant1.frequency.setValueAtTime(650 * personaFormantMult, startTime);
+      formant1.frequency.exponentialRampToValueAtTime(1600 * personaFormantMult, startTime + dur * 0.28);
+      formant1.frequency.exponentialRampToValueAtTime(1180 * personaFormantMult, startTime + dur * 0.65);
+      formant1.frequency.exponentialRampToValueAtTime(780 * personaFormantMult, startTime + dur);
 
-      formant2.frequency.setValueAtTime(1800, startTime);
-      formant2.frequency.exponentialRampToValueAtTime(2720, startTime + dur * 0.28);
-      formant2.frequency.exponentialRampToValueAtTime(1950, startTime + dur * 0.65);
-      formant2.frequency.exponentialRampToValueAtTime(1350, startTime + dur);
-
-      masterGain.gain.setValueAtTime(0.001, startTime);
-      masterGain.gain.linearRampToValueAtTime(peakGain, startTime + Math.min(0.06, dur * 0.12));
-      masterGain.gain.setValueAtTime(peakGain * 0.9, startTime + dur * 0.58);
-      masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+      formant2.frequency.setValueAtTime(1800 * personaFormantMult, startTime);
+      formant2.frequency.exponentialRampToValueAtTime(2720 * personaFormantMult, startTime + dur * 0.28);
+      formant2.frequency.exponentialRampToValueAtTime(1950 * personaFormantMult, startTime + dur * 0.65);
+      formant2.frequency.exponentialRampToValueAtTime(1350 * personaFormantMult, startTime + dur);
     }
+
+    masterGain.gain.setValueAtTime(0.001, startTime);
+    masterGain.gain.linearRampToValueAtTime(peakGain, startTime + Math.min(0.06, dur * 0.12));
+    masterGain.gain.setValueAtTime(peakGain * 0.9, startTime + dur * 0.6);
+    masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
 
     osc1.connect(formant1);
     osc2.connect(formant2);
@@ -618,7 +791,8 @@ export class FelineSpeechEngine {
     chunks: MessageChunk[],
     syllables: SyllableKeyframe[],
     soundEnabled: boolean,
-    severity: EventSeverity
+    severity: EventSeverity,
+    voicePersona: VoicePersona = 'female'
   ): void {
     if (!soundEnabled || syllables.length === 0 || chunks.length === 0) return;
     const actx = this.ensureAudioContext();
@@ -673,6 +847,7 @@ export class FelineSpeechEngine {
             pitchScale,
             inflection,
             peakGain: isUrgent ? 0.28 : 0.26,
+            voicePersona,
           });
 
           meowCount += 1;
@@ -684,11 +859,117 @@ export class FelineSpeechEngine {
   }
 
   /**
-   * Fetches and decodes a studio-grade Neural Female TTS audio buffer from `/api/tts`
-   * (backed by Google Neural Female TTS in `vite.config.ts`).
+   * Transforms a clean Antipodean (`en-AU`) TTS `AudioBuffer` into a crisp, natural
+   * New Zealand (Kiwi) male baritone `AudioBuffer`:
+   * 1. Pitch-preserving SOLA time-compression (`1.26x`)
+   * 2. Clean formant + pitch down-sampling (`0.78x`, ~4.3 semitones down into a natural male vocal tract)
+   *    without gravel distortion, keeping crisp Kiwi vowel articulation.
+   */
+  private transformToNewZealandMaleBuffer(
+    actx: AudioContext,
+    rawBuffer: AudioBuffer
+  ): AudioBuffer {
+    const sr = rawBuffer.sampleRate;
+    const input = rawBuffer.getChannelData(0);
+    if (input.length < 512) return rawBuffer;
+
+    const tempoCompress = 1.26;
+    const winLen = Math.max(256, Math.round(sr * 0.028));
+    const hopS = Math.round(winLen * 0.5);
+    const hopA = Math.round(hopS * tempoCompress);
+    const searchRadius = Math.max(16, Math.round(sr * 0.006));
+
+    const hann = new Float32Array(winLen);
+    for (let i = 0; i < winLen; i++) {
+      hann[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (winLen - 1)));
+    }
+
+    const estCompressedLen = Math.max(winLen * 2, Math.ceil(input.length / tempoCompress) + winLen);
+    const compressed = new Float32Array(estCompressedLen);
+    const normWin = new Float32Array(estCompressedLen);
+
+    let inPos = 0;
+    let outPos = 0;
+
+    while (inPos + winLen < input.length && outPos + winLen < estCompressedLen) {
+      let bestOffset = 0;
+      if (outPos > 0) {
+        let bestCorr = -Infinity;
+        const overlapCheck = Math.min(hopS, 256);
+        for (let off = -searchRadius; off <= searchRadius; off += 2) {
+          const candIn = inPos + off;
+          if (candIn < 0 || candIn + winLen >= input.length) continue;
+          let dot = 0;
+          let e1 = 1e-6;
+          let e2 = 1e-6;
+          for (let k = 0; k < overlapCheck; k += 2) {
+            const a = compressed[outPos + k];
+            const b = input[candIn + k];
+            dot += a * b;
+            e1 += a * a;
+            e2 += b * b;
+          }
+          const corr = dot / Math.sqrt(e1 * e2);
+          if (corr > bestCorr) {
+            bestCorr = corr;
+            bestOffset = off;
+          }
+        }
+      }
+
+      const actualIn = Math.max(0, Math.min(input.length - winLen, inPos + bestOffset));
+      for (let i = 0; i < winLen; i++) {
+        const w = hann[i];
+        compressed[outPos + i] += input[actualIn + i] * w;
+        normWin[outPos + i] += w;
+      }
+
+      inPos += hopA;
+      outPos += hopS;
+    }
+
+    const validCompressedLen = Math.min(estCompressedLen, outPos + hopS);
+    for (let i = 0; i < validCompressedLen; i++) {
+      if (normWin[i] > 0.05) {
+        compressed[i] /= normWin[i];
+      }
+    }
+
+    const pitchShift = 0.78;
+    const outLen = Math.max(1, Math.floor(validCompressedLen / pitchShift));
+    const outBuffer = actx.createBuffer(1, outLen, sr);
+    const out = outBuffer.getChannelData(0);
+
+    let peak = 0.001;
+    for (let i = 0; i < outLen; i++) {
+      const srcPos = i * pitchShift;
+      const idx = Math.floor(srcPos);
+      const frac = srcPos - idx;
+      const s0 = compressed[Math.min(validCompressedLen - 1, idx)];
+      const s1 = compressed[Math.min(validCompressedLen - 1, idx + 1)];
+      const sample = s0 + (s1 - s0) * frac;
+      out[i] = sample;
+      const absS = Math.abs(sample);
+      if (absS > peak) peak = absS;
+    }
+
+    const normGain = 0.92 / Math.max(0.05, peak);
+    for (let i = 0; i < outLen; i++) {
+      out[i] *= normGain;
+    }
+
+    return outBuffer;
+  }
+
+  /**
+   * Fetches and decodes a TTS audio buffer from `/api/tts` and transforms it
+   * according to `voicePersona` (`female` or `nz-male`).
    * Automatically skips network calls in headless WebDriver test runners or when offline.
    */
-  private async fetchAndDecodeNeuralSpeech(spokenText: string): Promise<AudioBuffer | null> {
+  private async fetchAndDecodeNeuralSpeech(
+    spokenText: string,
+    voicePersona: VoicePersona = 'female'
+  ): Promise<AudioBuffer | null> {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return null;
     // Skip remote neural fetch in automated headless Playwright tests so offline sandbox tests run instantaneously
     if (navigator.webdriver) return null;
@@ -696,13 +977,18 @@ export class FelineSpeechEngine {
     const actx = this.ensureAudioContext();
     if (!actx) return null;
 
-    const cached = this.neuralBufferCache.get(spokenText);
+    const cacheKey = `${voicePersona}::${spokenText}`;
+    const cached = this.neuralBufferCache.get(cacheKey);
     if (cached) return cached;
+
+    const tl = voicePersona === 'nz-male' ? 'en-AU' : 'en-US';
+    const textForTts =
+      voicePersona === 'nz-male' ? applyNewZealandAccentPhonetics(spokenText) : spokenText;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2200);
     try {
-      const resp = await fetch(`/api/tts?tl=en-US&text=${encodeURIComponent(spokenText)}`, {
+      const resp = await fetch(`/api/tts?tl=${tl}&text=${encodeURIComponent(textForTts)}`, {
         signal: controller.signal,
       });
       clearTimeout(timer);
@@ -711,13 +997,18 @@ export class FelineSpeechEngine {
       const arrBuf = await resp.arrayBuffer();
       if (!arrBuf || arrBuf.byteLength < 256) return null;
 
-      const audioBuffer = await actx.decodeAudioData(arrBuf.slice(0));
+      const rawBuffer = await actx.decodeAudioData(arrBuf.slice(0));
+      const finalBuffer =
+        voicePersona === 'nz-male'
+          ? this.transformToNewZealandMaleBuffer(actx, rawBuffer)
+          : rawBuffer;
+
       if (this.neuralBufferCache.size > 60) {
         const firstKey = this.neuralBufferCache.keys().next().value;
         if (firstKey) this.neuralBufferCache.delete(firstKey);
       }
-      this.neuralBufferCache.set(spokenText, audioBuffer);
-      return audioBuffer;
+      this.neuralBufferCache.set(cacheKey, finalBuffer);
+      return finalBuffer;
     } catch {
       clearTimeout(timer);
       return null;
@@ -882,10 +1173,14 @@ export class FelineSpeechEngine {
   }
 
   /**
-   * Plays a decoded Neural Female `AudioBuffer` through a warm vocal presence filter
+   * Plays a decoded `AudioBuffer` through a persona-matched vocal presence EQ chain
    * on the Web Audio graph and resolves when playback completes.
    */
-  private playDecodedNeuralSpeech(audioBuffer: AudioBuffer, runId: number): Promise<void> {
+  private playDecodedNeuralSpeech(
+    audioBuffer: AudioBuffer,
+    runId: number,
+    voicePersona: VoicePersona = 'female'
+  ): Promise<void> {
     const actx = this.ensureAudioContext();
     if (!actx) return Promise.resolve();
 
@@ -905,22 +1200,44 @@ export class FelineSpeechEngine {
         const source = actx.createBufferSource();
         source.buffer = audioBuffer;
 
-        // Warm vocal presence EQ: gentle low-mid warmth at 240 Hz + smooth high-shelf air
-        const warmthFilter = actx.createBiquadFilter();
-        warmthFilter.type = 'peaking';
-        warmthFilter.frequency.setValueAtTime(240, actx.currentTime);
-        warmthFilter.Q.setValueAtTime(1.1, actx.currentTime);
-        warmthFilter.gain.setValueAtTime(2.2, actx.currentTime);
+        const chestFilter = actx.createBiquadFilter();
+        chestFilter.type = 'peaking';
+
+        const presenceFilter = actx.createBiquadFilter();
+        presenceFilter.type = 'peaking';
 
         const deHarshFilter = actx.createBiquadFilter();
         deHarshFilter.type = 'lowpass';
-        deHarshFilter.frequency.setValueAtTime(9200, actx.currentTime);
+
+        if (voicePersona === 'female') {
+          chestFilter.frequency.setValueAtTime(240, actx.currentTime);
+          chestFilter.Q.setValueAtTime(1.1, actx.currentTime);
+          chestFilter.gain.setValueAtTime(2.2, actx.currentTime);
+
+          presenceFilter.frequency.setValueAtTime(3200, actx.currentTime);
+          presenceFilter.Q.setValueAtTime(1.0, actx.currentTime);
+          presenceFilter.gain.setValueAtTime(1.5, actx.currentTime);
+
+          deHarshFilter.frequency.setValueAtTime(9400, actx.currentTime);
+        } else {
+          // Warm Kiwi male baritone chest at 165 Hz + clear Antipodean vowel presence at 2450 Hz
+          chestFilter.frequency.setValueAtTime(165, actx.currentTime);
+          chestFilter.Q.setValueAtTime(1.1, actx.currentTime);
+          chestFilter.gain.setValueAtTime(3.6, actx.currentTime);
+
+          presenceFilter.frequency.setValueAtTime(2450, actx.currentTime);
+          presenceFilter.Q.setValueAtTime(1.1, actx.currentTime);
+          presenceFilter.gain.setValueAtTime(2.4, actx.currentTime);
+
+          deHarshFilter.frequency.setValueAtTime(7800, actx.currentTime);
+        }
 
         const gainNode = actx.createGain();
         gainNode.gain.setValueAtTime(1.0, actx.currentTime);
 
-        source.connect(warmthFilter);
-        warmthFilter.connect(deHarshFilter);
+        source.connect(chestFilter);
+        chestFilter.connect(presenceFilter);
+        presenceFilter.connect(deHarshFilter);
         deHarshFilter.connect(gainNode);
         gainNode.connect(actx.destination);
 
@@ -930,7 +1247,7 @@ export class FelineSpeechEngine {
         };
 
         this.activeOscillators.push(source);
-        this.activeNodes.push(warmthFilter, deHarshFilter, gainNode);
+        this.activeNodes.push(chestFilter, presenceFilter, deHarshFilter, gainNode);
 
         this.speechStartPerf = performance.now();
         source.start(0);
@@ -942,15 +1259,15 @@ export class FelineSpeechEngine {
 
   /**
    * Fallback Web Speech API synthesizer when offline or in headless test environments:
-   * Uses normalized conversational text and native `pitch = 1.0`, `rate = 1.0` to avoid
-   * browser phase-vocoder pitch-shifting distortion.
+   * Adapts voice selection, pitch, rate, and Kiwi phonetics to `voicePersona`.
    */
   private speakContinuousWebSpeech(
     chunks: MessageChunk[],
     soundEnabled: boolean,
     _severity: EventSeverity,
     expectedDurationMs: number,
-    runId: number
+    runId: number,
+    voicePersona: VoicePersona = 'female'
   ): Promise<void> {
     if (
       !soundEnabled ||
@@ -962,7 +1279,9 @@ export class FelineSpeechEngine {
     }
 
     const rawJoined = chunks.map((c) => c.text).join(' ');
-    const spokenText = normalizeTextForSmoothSpeech(rawJoined);
+    const baseNormalized = normalizeTextForSmoothSpeech(rawJoined);
+    const spokenText =
+      voicePersona === 'nz-male' ? applyNewZealandAccentPhonetics(baseNormalized) : baseNormalized;
 
     return new Promise<void>((resolve) => {
       let settled = false;
@@ -983,7 +1302,7 @@ export class FelineSpeechEngine {
         }
         try {
           const voices = window.speechSynthesis.getVoices();
-          const bestVoice = this.preferredVoice || selectPreferredFemaleVoice(voices);
+          const bestVoice = selectPreferredVoiceForPersona(voices, voicePersona);
           if (bestVoice) {
             this.preferredVoice = bestVoice;
             this.selectedVoiceName = bestVoice.name;
@@ -992,17 +1311,20 @@ export class FelineSpeechEngine {
           const utterance = new SpeechSynthesisUtterance(spokenText);
           if (bestVoice) {
             utterance.voice = bestVoice;
-            utterance.lang = bestVoice.lang || 'en-US';
+            utterance.lang = bestVoice.lang || (voicePersona === 'nz-male' ? 'en-NZ' : 'en-US');
           } else {
-            utterance.lang = 'en-US';
+            utterance.lang = voicePersona === 'nz-male' ? 'en-NZ' : 'en-US';
           }
 
-          // Use native 1.0 pitch and 1.0 rate on female voices so the browser's PSOLA
-          // time-stretcher/pitch-shifter never introduces metallic phase warble!
-          const isEspeakGeneric =
-            bestVoice && /espeak/i.test(bestVoice.name) && !/\+f/i.test(bestVoice.name);
-          utterance.rate = 1.0;
-          utterance.pitch = isEspeakGeneric ? 1.15 : 1.0;
+          if (voicePersona === 'female') {
+            const isEspeakGeneric =
+              bestVoice && /espeak/i.test(bestVoice.name) && !/\+f/i.test(bestVoice.name);
+            utterance.rate = 1.0;
+            utterance.pitch = isEspeakGeneric ? 1.15 : 1.0;
+          } else {
+            utterance.rate = 1.02;
+            utterance.pitch = 0.82;
+          }
           utterance.volume = 1.0;
 
           // Map normalized word offsets for boundary tracking
@@ -1072,19 +1394,21 @@ export class FelineSpeechEngine {
   }
 
   /**
-   * Speaks a full CloudEvent message with smooth neural female speech (and automatic
-   * offline fallback) plus speech-synced bubble chunk refreshes.
+   * Speaks a full CloudEvent message with the selected `voicePersona` (`female` or `nz-male`),
+   * speech-synced bubble chunk refreshes, and automatic bubble dismissal shortly after completion.
    */
   public async speakMessage(
     message: string,
     options: {
       voiceMode: VoiceMode;
+      voicePersona?: VoicePersona;
       soundEnabled: boolean;
       severity?: EventSeverity;
       maxWordsPerChunk?: number;
       maxCharsPerChunk?: number;
       minChunkMs?: number;
       msPerWord?: number;
+      bubbleCloseDelayMs?: number;
     }
   ): Promise<void> {
     const runId = ++this.currentRunId;
@@ -1092,6 +1416,7 @@ export class FelineSpeechEngine {
     this.activeNeuralAlignment = null;
 
     const severity = options.severity ?? 'info';
+    const voicePersona = options.voicePersona ?? 'female';
     const chunks = chunkMessageForBubble(message, {
       maxWords: options.maxWordsPerChunk ?? 8,
       maxChars: options.maxCharsPerChunk ?? 52,
@@ -1113,23 +1438,23 @@ export class FelineSpeechEngine {
     this.ttsBoundaryActive = false;
     this.notifyState();
 
-    // Start fetching the Neural Female TTS audio buffer concurrently during the initial cat meow preamble!
+    // Start fetching the Neural TTS audio buffer concurrently during the initial cat meow preamble!
     const wantsHumanVoice =
       options.soundEnabled && (options.voiceMode === 'tts' || options.voiceMode === 'both');
     const normalizedFullText = normalizeTextForSmoothSpeech(chunks.map((c) => c.text).join(' '));
     const neuralFetchPromise = wantsHumanVoice
-      ? this.fetchAndDecodeNeuralSpeech(normalizedFullText)
+      ? this.fetchAndDecodeNeuralSpeech(normalizedFullText, voicePersona)
       : Promise.resolve(null);
 
     // Cue preamble:
     // - On high-severity alerts: fierce mad-cat yowl before speaking
-    // - In 'both' mode on normal events: a strong, classic cat meow before the clear female voice speaks
+    // - In 'both' mode on normal events: a persona-matched cat meow/growl before the human voice speaks
     if (severity === 'critical' || severity === 'error') {
-      this.playCatVocalization(options.soundEnabled, true, 0.85);
+      this.playCatVocalization(options.soundEnabled, true, 0.85, voicePersona);
       await this.waitMs(360, runId);
       if (this.currentRunId !== runId) return;
     } else if (options.voiceMode === 'both') {
-      this.playCatVocalization(options.soundEnabled, false, 0.7);
+      this.playCatVocalization(options.soundEnabled, false, 0.7, voicePersona);
       await this.waitMs(340, runId);
       if (this.currentRunId !== runId) return;
     }
@@ -1137,6 +1462,7 @@ export class FelineSpeechEngine {
     const { syllables, chunkEndTimesMs, totalDurationMs } = buildMessageSyllableTimeline(chunks, {
       severity,
       minChunkMs: options.minChunkMs ?? 1400,
+      voicePersona,
     });
 
     this.timelineSyllables = syllables;
@@ -1144,21 +1470,22 @@ export class FelineSpeechEngine {
     this.speechStartPerf = performance.now();
 
     if (options.voiceMode === 'meow') {
-      this.scheduleStrongMeowSpeak(chunks, syllables, options.soundEnabled, severity);
+      this.scheduleStrongMeowSpeak(chunks, syllables, options.soundEnabled, severity, voicePersona);
       await this.waitMs(totalDurationMs, runId);
     } else {
-      // Try playing the studio-grade Neural Female AudioBuffer first;
-      // if offline or in headless test mode, fall back seamlessly to Web Speech API + syllable timeline
       const neuralBuffer = await neuralFetchPromise;
       if (this.currentRunId !== runId) return;
 
       if (neuralBuffer) {
-        this.selectedVoiceName = 'Google Neural Female (en-US)';
+        this.selectedVoiceName =
+          voicePersona === 'female'
+            ? 'Google Neural Female (en-US)'
+            : 'New Zealand Male Baritone (en-NZ)';
         const alignment = this.alignNeuralAudioToChunks(neuralBuffer, chunks);
         this.activeNeuralAlignment = alignment;
         this.chunkEndTimesMs = alignment.chunkEndTimesMs;
         this.notifyState();
-        await this.playDecodedNeuralSpeech(neuralBuffer, runId);
+        await this.playDecodedNeuralSpeech(neuralBuffer, runId, voicePersona);
       } else {
         const ttsPromise = wantsHumanVoice
           ? this.speakContinuousWebSpeech(
@@ -1166,7 +1493,8 @@ export class FelineSpeechEngine {
               options.soundEnabled,
               severity,
               totalDurationMs,
-              runId
+              runId,
+              voicePersona
             )
           : Promise.resolve();
         const timelinePromise = this.waitMs(totalDurationMs, runId);
@@ -1185,6 +1513,17 @@ export class FelineSpeechEngine {
     this.timelineSyllables = [];
     this.ttsBoundaryActive = false;
     this.notifyState();
+
+    // Close the speech bubble shortly after finishing reading the final chunk
+    const closeDelayMs = options.bubbleCloseDelayMs ?? 1200;
+    if (closeDelayMs >= 0) {
+      await this.waitMs(closeDelayMs, runId);
+      if (this.currentRunId !== runId) return;
+      this.chunks = [];
+      this.activeChunkIndex = 0;
+      this.activeWordIndex = 0;
+      this.notifyState();
+    }
   }
 
   /**

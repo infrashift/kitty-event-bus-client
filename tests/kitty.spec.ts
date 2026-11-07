@@ -57,6 +57,8 @@ test.describe('kitty-event-bus-client', () => {
 
     for (const id of [
       '#sendEventBtn',
+      '#voicePersonaFemale',
+      '#voicePersonaNzMale',
       '#modeOverlay',
       '#calibrateBtn',
       '#themeToggleBtn',
@@ -64,6 +66,14 @@ test.describe('kitty-event-bus-client', () => {
     ]) {
       await expect(page.locator(id), `${id} not in viewport`).toBeInViewport({ ratio: 1 });
     }
+    await expect(page.locator('#voicePersonaNzMale')).toHaveText('Male');
+
+    const eventBox = (await page.locator('#activeEventType').boundingBox())!;
+    const sendBtnBox = (await page.locator('#sendEventBtn').boundingBox())!;
+    expect(
+      eventBox.y + eventBox.height,
+      'NATS message text should be positioned above Send CloudEvent button'
+    ).toBeLessThanOrEqual(sendBtnBox.y + 4);
   });
 
   test('canvas backing store tracks its on-screen size (crisp HiDPI)', async ({ page }) => {
@@ -84,7 +94,7 @@ test.describe('kitty-event-bus-client', () => {
   }) => {
     await openKittyApp(page);
 
-    // Trigger a 2-chunk message with fast deterministic reading floor (400ms per chunk)
+    // Trigger a 3-chunk message with fast deterministic reading floor and short auto-close delay
     await page.evaluate(() => {
       const dbg = (window as any).__kittyDebug;
       dbg.speakEvent(
@@ -98,7 +108,7 @@ test.describe('kitty-event-bus-client', () => {
             'First chunk of the cloud event message here, and now the second chunk replaces the bubble cleanly!',
           time: new Date().toISOString(),
         },
-        { maxWordsPerChunk: 8, minChunkMs: 450, msPerWord: 50 }
+        { maxWordsPerChunk: 8, minChunkMs: 450, msPerWord: 50, bubbleCloseDelayMs: 250 }
       );
     });
 
@@ -114,6 +124,9 @@ test.describe('kitty-event-bus-client', () => {
     // Wait for speech to reach the end of chunk 1 and refresh the bubble with chunk 2 / 3
     await expect(page.getByTestId('chunk-indicator')).toHaveText('2 / 3', { timeout: 5000 });
     await expect(page.getByTestId('bubble-chunk-text')).toContainText('second chunk replaces');
+
+    // Wait for the kitty to finish reading the final chunk and verify the speech bubble closes shortly after
+    await expect(page.getByTestId('speech-bubble')).toBeHidden({ timeout: 5000 });
   });
 
   test('critical CloudEvent triggers ocular plasma lasers and logs in the NATS inspector drawer', async ({
@@ -123,7 +136,7 @@ test.describe('kitty-event-bus-client', () => {
 
     if (info.project.name === 'desktop') {
       await page.screenshot({
-        path: '/home/ryancraig/.gemini/antigravity-cli/brain/2d269f4b-d824-4c9c-bada-0cd0a08aad39/kitty-speaking-normal.png',
+        path: info.outputPath('kitty-speaking-normal.png'),
       });
     }
 
@@ -133,7 +146,7 @@ test.describe('kitty-event-bus-client', () => {
     if (info.project.name === 'desktop') {
       await page.waitForTimeout(600);
       await page.screenshot({
-        path: '/home/ryancraig/.gemini/antigravity-cli/brain/2d269f4b-d824-4c9c-bada-0cd0a08aad39/kitty-laser-alert.png',
+        path: info.outputPath('kitty-laser-alert.png'),
       });
     }
 
@@ -146,7 +159,7 @@ test.describe('kitty-event-bus-client', () => {
 
     if (info.project.name === 'desktop') {
       await page.screenshot({
-        path: '/home/ryancraig/.gemini/antigravity-cli/brain/2d269f4b-d824-4c9c-bada-0cd0a08aad39/kitty-nats-inspector.png',
+        path: info.outputPath('kitty-nats-inspector.png'),
       });
     }
 
@@ -158,6 +171,12 @@ test.describe('kitty-event-bus-client', () => {
     await expect(page.getByTestId('bubble-chunk-text')).toContainText(
       'Custom NATS message spoken by kitty.'
     );
+
+    // Switch between Female and Male voice personas
+    await page.locator('#voicePersonaNzMale').click();
+    await expect(page.getByTestId('speech-bubble')).toBeVisible();
+    await page.locator('#voicePersonaFemale').click();
+    await expect(page.getByTestId('speech-bubble')).toBeVisible();
   });
 
   test('theme persists via starlight-theme in localStorage', async ({ page }) => {

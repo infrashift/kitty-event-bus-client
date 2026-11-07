@@ -140,6 +140,7 @@ function neuralFemaleTtsPlugin(): Plugin {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [vue(), tailwindcss(), neuralFemaleTtsPlugin()],
   server: {
     port: 4321,
