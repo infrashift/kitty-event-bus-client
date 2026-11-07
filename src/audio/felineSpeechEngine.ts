@@ -338,6 +338,20 @@ export function applyNewZealandAccentPhonetics(spokenText: string): string {
 }
 
 /**
+ * Deterministic 32-bit FNV-1a hash used to look up pre-bundled static Neural TTS MP3s
+ * in `public/tts/<hash>.mp3` on static hosts like GitHub Pages.
+ */
+export function hashTtsKey(tl: string, text: string): string {
+  const input = `${tl}::${text}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+/**
  * Selects the clearest, most natural female English voice from the browser's
  * `window.speechSynthesis.getVoices()` list.
  */
@@ -861,9 +875,9 @@ export class FelineSpeechEngine {
   /**
    * Transforms a clean Antipodean (`en-AU`) TTS `AudioBuffer` into a crisp, natural
    * New Zealand (Kiwi) male baritone `AudioBuffer`:
-   * 1. Pitch-preserving SOLA time-compression (`1.26x`)
-   * 2. Clean formant + pitch down-sampling (`0.78x`, ~4.3 semitones down into a natural male vocal tract)
-   *    without gravel distortion, keeping crisp Kiwi vowel articulation.
+   * 1. Gentle 4x-overlapped SOLA time-compression (`1.12x`) with a 38ms Hann window
+   * 2. Clean formant + pitch down-sampling (`0.88x`, ~2.2 semitones down into a natural male vocal tract)
+   *    with backed-off compression so consonants remain crystal-clear and artifact-free.
    */
   private transformToNewZealandMaleBuffer(
     actx: AudioContext,
@@ -873,11 +887,11 @@ export class FelineSpeechEngine {
     const input = rawBuffer.getChannelData(0);
     if (input.length < 512) return rawBuffer;
 
-    const tempoCompress = 1.26;
-    const winLen = Math.max(256, Math.round(sr * 0.028));
-    const hopS = Math.round(winLen * 0.5);
+    const tempoCompress = 1.12;
+    const winLen = Math.max(512, Math.round(sr * 0.038));
+    const hopS = Math.round(winLen * 0.25);
     const hopA = Math.round(hopS * tempoCompress);
-    const searchRadius = Math.max(16, Math.round(sr * 0.006));
+    const searchRadius = Math.max(16, Math.round(sr * 0.005));
 
     const hann = new Float32Array(winLen);
     for (let i = 0; i < winLen; i++) {
@@ -895,7 +909,7 @@ export class FelineSpeechEngine {
       let bestOffset = 0;
       if (outPos > 0) {
         let bestCorr = -Infinity;
-        const overlapCheck = Math.min(hopS, 256);
+        const overlapCheck = Math.min(hopS * 2, 384);
         for (let off = -searchRadius; off <= searchRadius; off += 2) {
           const candIn = inPos + off;
           if (candIn < 0 || candIn + winLen >= input.length) continue;
@@ -935,7 +949,7 @@ export class FelineSpeechEngine {
       }
     }
 
-    const pitchShift = 0.78;
+    const pitchShift = 0.88;
     const outLen = Math.max(1, Math.floor(validCompressedLen / pitchShift));
     const outBuffer = actx.createBuffer(1, outLen, sr);
     const out = outBuffer.getChannelData(0);
@@ -962,9 +976,11 @@ export class FelineSpeechEngine {
   }
 
   /**
-   * Fetches and decodes a TTS audio buffer from `/api/tts` and transforms it
-   * according to `voicePersona` (`female` or `nz-male`).
-   * Automatically skips network calls in headless WebDriver test runners or when offline.
+   * Fetches and decodes a Neural TTS audio buffer:
+   * 1. First checks pre-bundled static MP3 assets (`./tts/<hash>.mp3`) so static deployments
+   *    like GitHub Pages play crystal-clear Neural TTS with zero backend server required.
+   * 2. Falls back to the Vite `/api/tts` proxy for dynamic/custom messages when running locally.
+   * Automatically skips network calls in headless WebDriver test runners.
    */
   private async fetchAndDecodeNeuralSpeech(
     spokenText: string,
@@ -984,35 +1000,43 @@ export class FelineSpeechEngine {
     const tl = voicePersona === 'nz-male' ? 'en-AU' : 'en-US';
     const textForTts =
       voicePersona === 'nz-male' ? applyNewZealandAccentPhonetics(spokenText) : spokenText;
+    const staticHash = hashTtsKey(tl, textForTts);
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2200);
-    try {
-      const resp = await fetch(`/api/tts?tl=${tl}&text=${encodeURIComponent(textForTts)}`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!resp.ok) return null;
+    const candidateUrls = [
+      `./tts/${staticHash}.mp3`,
+      `./api/tts?tl=${tl}&text=${encodeURIComponent(textForTts)}`,
+    ];
 
-      const arrBuf = await resp.arrayBuffer();
-      if (!arrBuf || arrBuf.byteLength < 256) return null;
+    for (const url of candidateUrls) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2200);
+      try {
+        const resp = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+        const contentType = resp.headers.get('content-type') || '';
+        if (!resp.ok || contentType.includes('text/html')) continue;
 
-      const rawBuffer = await actx.decodeAudioData(arrBuf.slice(0));
-      const finalBuffer =
-        voicePersona === 'nz-male'
-          ? this.transformToNewZealandMaleBuffer(actx, rawBuffer)
-          : rawBuffer;
+        const arrBuf = await resp.arrayBuffer();
+        if (!arrBuf || arrBuf.byteLength < 256) continue;
 
-      if (this.neuralBufferCache.size > 60) {
-        const firstKey = this.neuralBufferCache.keys().next().value;
-        if (firstKey) this.neuralBufferCache.delete(firstKey);
+        const rawBuffer = await actx.decodeAudioData(arrBuf.slice(0));
+        const finalBuffer =
+          voicePersona === 'nz-male'
+            ? this.transformToNewZealandMaleBuffer(actx, rawBuffer)
+            : rawBuffer;
+
+        if (this.neuralBufferCache.size > 60) {
+          const firstKey = this.neuralBufferCache.keys().next().value;
+          if (firstKey) this.neuralBufferCache.delete(firstKey);
+        }
+        this.neuralBufferCache.set(cacheKey, finalBuffer);
+        return finalBuffer;
+      } catch {
+        clearTimeout(timer);
       }
-      this.neuralBufferCache.set(cacheKey, finalBuffer);
-      return finalBuffer;
-    } catch {
-      clearTimeout(timer);
-      return null;
     }
+
+    return null;
   }
 
   /**
@@ -1279,9 +1303,7 @@ export class FelineSpeechEngine {
     }
 
     const rawJoined = chunks.map((c) => c.text).join(' ');
-    const baseNormalized = normalizeTextForSmoothSpeech(rawJoined);
-    const spokenText =
-      voicePersona === 'nz-male' ? applyNewZealandAccentPhonetics(baseNormalized) : baseNormalized;
+    const spokenText = normalizeTextForSmoothSpeech(rawJoined);
 
     return new Promise<void>((resolve) => {
       let settled = false;
@@ -1322,8 +1344,8 @@ export class FelineSpeechEngine {
             utterance.rate = 1.0;
             utterance.pitch = isEspeakGeneric ? 1.15 : 1.0;
           } else {
-            utterance.rate = 1.02;
-            utterance.pitch = 0.82;
+            utterance.rate = 1.0;
+            utterance.pitch = 0.92;
           }
           utterance.volume = 1.0;
 
