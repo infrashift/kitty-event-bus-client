@@ -303,6 +303,11 @@ const canvasRef = ref<HTMLCanvasElement | null>(null);
 const isSpeaking = ref(false);
 const awaitingAudioUnlock = ref(false);
 let lastSpokenPayload: KittyEventPayload | null = null;
+// Laser mode switched on by a critical/error event (rather than the manual Laser control).
+// The silent "scream" jaw pose is reserved for manual laser mode: an alert's jaw is driven
+// purely by its yowl and speech, so it stays shut in the bubble-close gap after speaking.
+let alertLaserRunId = 0;
+let alertLaserActive = false;
 const activeChunk = ref<MessageChunk | null>(null);
 const activeChunkIndex = ref(0);
 const activeWordIndex = ref(0);
@@ -603,8 +608,8 @@ function render(currentTime: number) {
 
   // Sample the speech engine's live syllable lip-sync envelope
   const speechSample = speechEngine.sampleLiveFrame(currentTime, dt);
-  const targetMouth =
-    speechSample.mouthOpen + (props.laserAlertMode && !speechEngine.isSpeaking ? 0.85 : 0);
+  const manualScream = props.laserAlertMode && !alertLaserActive && !speechEngine.isSpeaking;
+  const targetMouth = speechSample.mouthOpen + (manualScream ? 0.85 : 0);
   state.screamOpen += (Math.min(1.2, targetMouth) - state.screamOpen) * Math.min(1, dt * 15);
 
   // Relaxed feline blink cycle (~4.5s - 7.0s interval, ~435ms gentle eyelid sweep)
@@ -1926,8 +1931,14 @@ async function speakEvent(
   currentSeverity.value = payload.severity;
 
   const isCriticalOrError = payload.severity === 'critical' || payload.severity === 'error';
+  const runId = ++alertLaserRunId;
   if (isCriticalOrError) {
+    alertLaserActive = true;
     emit('update:laserAlertMode', true);
+  } else if (alertLaserActive) {
+    // This event interrupted an alert that was still speaking: clear the alert's lasers.
+    alertLaserActive = false;
+    emit('update:laserAlertMode', false);
   }
 
   await speechEngine.speakMessage(payload.message, {
@@ -1942,7 +1953,10 @@ async function speakEvent(
     bubbleCloseDelayMs: overrideTiming?.bubbleCloseDelayMs,
   });
 
+  // A newer event took over while this one was speaking: it owns the laser state now.
+  if (runId !== alertLaserRunId) return;
   if (isCriticalOrError) {
+    alertLaserActive = false;
     emit('update:laserAlertMode', false);
   }
 }

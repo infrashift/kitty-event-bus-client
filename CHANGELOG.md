@@ -12,6 +12,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.5.1`] — 2026-11-09 — *The Jaw Discipline Amendment*
+
+### 🐛 Fixed
+- **The Silent Encore (Critical Alerts):** After reading a critical or error CloudEvent aloud, the cat used to drop its jaw into a full scream for the last ~1.2 seconds while the speech bubble lingered, with no sound at all, like a mime who has seen your Kubernetes bill. The silent scream pose is now reserved for the manual **Laser** control; after an alert the jaw closes when the speaking stops, while the ocular plasma lasers stay lit until the bubble closes. If a normal event interrupts an alert, the alert's lasers now switch off too.
+
+---
+
 ## [`1.5.0`] — 2026-11-06 — *The Island Annexation & Live Bus Liberation Act*
 
 ### ✨ Added

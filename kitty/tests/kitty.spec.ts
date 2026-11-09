@@ -180,6 +180,74 @@ test.describe('kitty-event-bus-client', () => {
     await expect(page.getByTestId('speech-bubble')).toBeVisible();
   });
 
+  test('critical alert: jaw closes after the message is read (no silent scream before the bubble closes)', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await openKittyApp(page);
+    // Muted: the timeline still drives the jaw, without the autoplay gate or real audio.
+    await page.locator('#soundToggleBtn').click();
+    await expect(page.locator('#soundIcon')).toHaveText('🔇');
+
+    // Speak a short critical event with a long bubble-close delay and sample the kitty in-page
+    // until the bubble closes. Laser rendering is slow under headless software rendering
+    // (~1 frame/s), so the stretched gap keeps several samples inside it.
+    const frames = await page.evaluate(async () => {
+      const dbg = (window as any).__kittyDebug;
+      const frames: {
+        speaking: boolean;
+        bubble: boolean;
+        lasers: boolean;
+        open: number;
+        voiced: number;
+      }[] = [];
+      dbg.speakEvent(
+        {
+          id: 'jaw-test',
+          natsSubject: 'cncf.events.alerts.critical',
+          type: 'io.infrashift.test.critical',
+          source: '/tests/kitty',
+          severity: 'critical',
+          message: 'Critical test alert.',
+          time: new Date().toISOString(),
+        },
+        { bubbleCloseDelayMs: 8000 }
+      );
+      const t0 = performance.now();
+      let spoke = false;
+      while (performance.now() - t0 < 45_000) {
+        await new Promise((r) => setTimeout(r, 20));
+        const f = {
+          speaking: dbg.speechEngine.isSpeaking as boolean,
+          bubble: !!document.querySelector('[data-testid="speech-bubble"]'),
+          lasers: !!document.querySelector('#modeOverlay')?.classList.contains('bg-white'),
+          open: dbg.state.screamOpen as number,
+          voiced: dbg.speechEngine.smoothedMouthOpen as number,
+        };
+        frames.push(f);
+        spoke ||= f.speaking;
+        if (spoke && !f.speaking && !f.bubble) break;
+      }
+      return frames;
+    });
+
+    // The gap: speech has finished, but the bubble (and the lasers) are still up.
+    let lastSpoken = -1;
+    frames.forEach((f, i) => f.speaking && (lastSpoken = i));
+    expect(lastSpoken, 'kitty never started speaking the alert').toBeGreaterThan(-1);
+    const gap = frames.slice(lastSpoken + 1).filter((f) => f.bubble);
+    expect(gap.every((f) => f.lasers), 'laser overlay should stay on until the bubble closes').toBe(true);
+
+    // In that gap the drawn jaw must follow only what the speech engine voices (the yowl's tail
+    // easing shut). The bug added a silent +0.85 "scream" on top while the lasers were still on.
+    // Compare against the engine rather than an absolute threshold: headless laser rendering
+    // runs at ~1 frame/s, so how far the jaw has eased shut depends on machine load.
+    expect(gap.length, 'too few samples inside the bubble-close gap').toBeGreaterThanOrEqual(2);
+    for (const f of gap.slice(1)) {
+      expect(f.open - f.voiced, 'jaw opened silently after the alert was spoken').toBeLessThan(0.3);
+    }
+  });
+
   test('theme persists via starlight-theme in localStorage', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('starlight-theme', 'dark'));
     await openKittyApp(page);
