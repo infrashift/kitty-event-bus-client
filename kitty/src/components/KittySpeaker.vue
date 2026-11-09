@@ -1436,9 +1436,9 @@ function drawCatNoseAndMouth(
 
   ctx.save();
 
-  // 1. Subtle Feline Nose Leather nostrils
+  // 1. Nostril alignment marks: a guide for lining up the mouth, so only shown while calibrating
   const nostrilY = y - ry * 0.36;
-  for (const side of [-1, 1]) {
+  for (const side of props.isCalibrating ? [-1, 1] : []) {
     ctx.save();
     ctx.translate(x + side * rx * 0.16, nostrilY);
     ctx.rotate(side * 0.45);

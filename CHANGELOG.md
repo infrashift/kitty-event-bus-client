@@ -12,6 +12,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.5.2`] — 2026-11-09 — *The Nostril Concealment Protocol*
+
+### 🐛 Fixed
+- **Phantom Nostrils:** Two small gray dots hovered above KITTY's mouth at all times, a calibration guide for lining up the jaw that had quietly promoted itself to permanent facial hardware. They now appear only while **Calibrate Eyes and Mouth** is on. The cat's real nose, which was there first, is relieved.
+
+---
+
 ## [`1.5.1`] — 2026-11-09 — *The Jaw Discipline Amendment*
 
 ### 🐛 Fixed
