@@ -7,6 +7,7 @@ The full release ledger, rainforest consumption audit and feline firmware histor
 
 Recent highlights:
 
+- **1.5.3**: Turning sound off while KITTY is speaking now silences her right away. The bubble finishes the message silently.
 - **1.5.2**: The nostril alignment dots above KITTY's mouth only show while calibrating.
 - **1.5.1**: Critical alerts no longer end with a silent open-mouthed scream: the jaw closes once KITTY finishes speaking.
 - **1.5.0**: KITTY moves into this Astro + Starlight site as a Vue island, and the app becomes an installable package: a Vue component library plus a standalone `<script>` build. KITTY can now listen to a [live NATS server](/kitty-event-bus-client/guides/live-nats/) over WebSocket.

@@ -558,6 +558,10 @@ export class FelineSpeechEngine {
   private ttsBaseUrl = DEFAULT_TTS_BASE_URL;
   private ttsProxyUrl: string | null = DEFAULT_TTS_PROXY_URL;
   private audioCtx: AudioContext | null = null;
+  // Every sound the engine makes goes through this gain node, so muting can silence audio
+  // that is already scheduled or playing (meows, neural speech) without breaking the timeline.
+  private outputGain: GainNode | null = null;
+  private muted = false;
   private activeNodes: AudioNode[] = [];
   private activeOscillators: Array<OscillatorNode | AudioBufferSourceNode> = [];
   private currentRunId = 0;
@@ -711,6 +715,48 @@ export class FelineSpeechEngine {
       this.audioCtx.resume().catch(() => {});
     }
     return this.audioCtx;
+  }
+
+  /** The engine's output bus: all Web Audio sources connect here, never straight to the speakers. */
+  private outputNode(actx: AudioContext): AudioNode {
+    if (!this.outputGain) {
+      try {
+        this.outputGain = actx.createGain();
+        this.outputGain.gain.setValueAtTime(this.muted ? 0 : 1, actx.currentTime);
+        this.outputGain.connect(actx.destination);
+      } catch {
+        return actx.destination;
+      }
+    }
+    return this.outputGain;
+  }
+
+  /**
+   * Mutes or unmutes sound immediately, including a message that is already being spoken.
+   * The speech bubble and jaw keep following the timeline; only the audio goes quiet.
+   * Web Speech can't be paused silently, so a browser-voice utterance is cancelled for good.
+   */
+  public setMuted(muted: boolean): void {
+    if (this.muted === muted) return;
+    this.muted = muted;
+    if (this.audioCtx && this.outputGain) {
+      const now = this.audioCtx.currentTime;
+      const gain = this.outputGain.gain;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(gain.value, now);
+      // A ~15ms fade avoids an audible click.
+      gain.setTargetAtTime(muted ? 0 : 1, now, 0.015);
+    }
+    if (muted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+  }
+
+  /** Whether sound is currently muted with `setMuted`. */
+  public get isMuted(): boolean {
+    return this.muted;
   }
 
   public stopActiveAudio(): void {
@@ -890,7 +936,7 @@ export class FelineSpeechEngine {
     osc2.connect(formant2);
     formant1.connect(masterGain);
     formant2.connect(masterGain);
-    masterGain.connect(actx.destination);
+    masterGain.connect(this.outputNode(actx));
 
     osc1.start(startTime);
     osc2.start(startTime);
@@ -1373,7 +1419,7 @@ export class FelineSpeechEngine {
         chestFilter.connect(presenceFilter);
         presenceFilter.connect(deHarshFilter);
         deHarshFilter.connect(gainNode);
-        gainNode.connect(actx.destination);
+        gainNode.connect(this.outputNode(actx));
 
         source.onended = () => {
           if (this.currentRunId === runId) finish();
@@ -1405,6 +1451,7 @@ export class FelineSpeechEngine {
   ): Promise<void> {
     if (
       !soundEnabled ||
+      this.muted ||
       typeof window === 'undefined' ||
       !('speechSynthesis' in window) ||
       typeof SpeechSynthesisUtterance === 'undefined'
@@ -1428,7 +1475,7 @@ export class FelineSpeechEngine {
       const safetyTimer = setTimeout(finish, Math.max(expectedDurationMs + 1500, 2500));
 
       const startUtterance = () => {
-        if (this.currentRunId !== runId || settled) {
+        if (this.currentRunId !== runId || settled || this.muted) {
           finish();
           return;
         }

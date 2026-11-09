@@ -1,7 +1,7 @@
 {
   "name": "kitty-site",
   "type": "module",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "description": "KITTY, CloudEvent NATS Speaker — project site built with Astro + Starlight. Hosts the kitty-event-bus-client package as a Vue island.",
   "scripts": {

@@ -248,6 +248,59 @@ test.describe('kitty-event-bus-client', () => {
     }
   });
 
+  test('muting while KITTY is speaking silences her right away; the bubble carries on', async ({
+    page,
+  }) => {
+    await openKittyApp(page);
+    // Meow-Speak schedules every meow up front, which is exactly what used to keep playing.
+    // The click is also the user gesture that unlocks audio.
+    await page.locator('#voiceMeow').click();
+
+    await page.evaluate(() => {
+      (window as any).__kittyDebug.speakEvent(
+        {
+          id: 'mute-test',
+          natsSubject: 'cncf.events.info',
+          type: 'io.infrashift.test.info',
+          source: '/tests/kitty',
+          severity: 'info',
+          message:
+            'This is a long message that keeps the kitty talking for a good while, so muting lands mid-speech.',
+          time: new Date().toISOString(),
+        },
+        { bubbleCloseDelayMs: 5000 }
+      );
+    });
+    await page.waitForFunction(() => (window as any).__kittyDebug.speechEngine.isSpeaking);
+
+    // Sound is audible before muting.
+    const outputGain = () =>
+      page.evaluate(() => (window as any).__kittyDebug.speechEngine.outputGain?.gain.value ?? null);
+    expect(await outputGain()).toBeGreaterThan(0.9);
+
+    await page.locator('#soundToggleBtn').click();
+    await expect(page.locator('#soundIcon')).toHaveText('🔇');
+
+    // The already-scheduled meows are silenced, and Web Speech is cancelled...
+    await expect.poll(outputGain).toBeLessThan(0.01);
+    expect(
+      await page.evaluate(() => ({
+        muted: (window as any).__kittyDebug.speechEngine.isMuted,
+        webSpeech: window.speechSynthesis?.speaking ?? false,
+      }))
+    ).toEqual({ muted: true, webSpeech: false });
+    // ...but the message keeps playing out silently in the bubble.
+    await expect(page.getByTestId('speech-bubble')).toBeVisible();
+    expect(await page.evaluate(() => (window as any).__kittyDebug.speechEngine.isSpeaking)).toBe(
+      true
+    );
+
+    // Unmuting restores sound.
+    await page.locator('#soundToggleBtn').click();
+    await expect(page.locator('#soundIcon')).toHaveText('🔊');
+    await expect.poll(outputGain).toBeGreaterThan(0.9);
+  });
+
   test('theme persists via starlight-theme in localStorage', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('starlight-theme', 'dark'));
     await openKittyApp(page);

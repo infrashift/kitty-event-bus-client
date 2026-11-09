@@ -12,6 +12,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.5.3`] — 2026-11-09 — *The Mute Button Enforcement Act*
+
+### 🐛 Fixed
+- **Selective Hearing:** Pressing **sound off** while KITTY was mid-sentence did nothing to the sentence already underway: the meows were pre-scheduled, the neural voice buffer was already rolling, and the browser voice kept reading to the end. All of KITTY's audio now flows through one output gain that the mute button turns down at once, and any browser-voice utterance is cancelled. The speech bubble and jaw finish the message silently, and unmuting mid-message brings the sound back.
+
+---
+
 ## [`1.5.2`] — 2026-11-09 — *The Nostril Concealment Protocol*
 
 ### 🐛 Fixed

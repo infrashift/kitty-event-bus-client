@@ -2005,12 +2005,15 @@ onMounted(() => {
   rafId = requestAnimationFrame(render);
 });
 
-// If sound is switched off while a message waits for the audio unlock, show it now, silently.
+// Muting silences whatever is already playing (the bubble and jaw carry on silently).
+// If a message is still waiting for the audio unlock, show it now, silently.
 watch(
   () => props.soundEnabled,
   (on) => {
+    speechEngine.setMuted(!on);
     if (!on && speechEngine.awaitingAudioUnlock && lastSpokenPayload) speakEvent(lastSpokenPayload);
-  }
+  },
+  { immediate: true }
 );
 
 onBeforeUnmount(() => {
