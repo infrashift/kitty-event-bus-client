@@ -12,6 +12,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [`1.5.4`] — 2026-11-12 — *The Lip-Sync Reconciliation Accord*
+
+### 🐛 Fixed
+- **Dubbed Kung-Fu Movie Syndrome:** On critical and error alerts, KITTY's jaw drifted out of step with her voice. The mad-cat yowl that opens an alert lasts about a second, but the voice cut in 360ms into it, so the yowl played over the first words while the jaw tried to follow the voice alone (and the yowl kept the jaw propped partly open). The voice now waits for the yowl to finish, and the jaw follows the voice alone from its first word. The angry 75ms jaw jitter of laser mode is also kept to the silent laser scream, so it no longer shakes the jaw while KITTY is talking. In **both** mode, the friendly meow before a normal event now also finishes before the voice begins.
+
+---
+
 ## [`1.5.3`] — 2026-11-09 — *The Mute Button Enforcement Act*
 
 ### 🐛 Fixed

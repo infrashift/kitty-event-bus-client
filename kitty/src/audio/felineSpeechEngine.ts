@@ -577,6 +577,8 @@ export class FelineSpeechEngine {
   public timelineSyllables: SyllableKeyframe[] = [];
   public chunkEndTimesMs: number[] = [];
   public manualRoarBurst = 0;
+  /** How fast `manualRoarBurst` eases shut (per second), matched to the cry that set it. */
+  private roarBurstDecayPerSec = 1.4;
   public smoothedMouthOpen = 0;
   public selectedVoiceName = 'New Zealand Male Baritone (en-NZ)';
 
@@ -797,25 +799,32 @@ export class FelineSpeechEngine {
    * Plays a strong, unmistakable synthesized feline vocalization tailored to `voicePersona`:
    * - `female`: classic melodic high-formant cat "Mee-aa-o-ww!"
    * - `nz-male`: warm, friendly Kiwi tomcat baritone meow
+   *
+   * The jaw opens with the cry and eases shut over its length. Returns that length in ms.
    */
   public playCatVocalization(
     soundEnabled: boolean,
     isMadScream = false,
     durationScale = 1.0,
     voicePersona: VoicePersona = 'nz-male'
-  ): void {
+  ): number {
+    // triggerSingleStrongMeow never plays a cry shorter than 0.38s
+    const durationSec = Math.max(0.38, (isMadScream ? 1.15 : 0.82) * durationScale);
     this.manualRoarBurst = 1.0;
-    if (!soundEnabled) return;
+    this.roarBurstDecayPerSec = 1 / durationSec;
+    const durationMs = durationSec * 1000;
+    if (!soundEnabled) return durationMs;
     const actx = this.ensureAudioContext();
-    if (!actx) return;
+    if (!actx) return durationMs;
 
     this.triggerSingleStrongMeow(actx, actx.currentTime, {
-      durationSec: (isMadScream ? 1.15 : 0.82) * durationScale,
+      durationSec,
       isMadScream,
       pitchScale: 1.0,
       peakGain: isMadScream ? 0.30 : 0.27,
       voicePersona,
     });
+    return durationMs;
   }
 
   /**
@@ -1643,15 +1652,20 @@ export class FelineSpeechEngine {
     // Cue preamble:
     // - On high-severity alerts: fierce mad-cat yowl before speaking
     // - In 'both' mode on normal events: a persona-matched cat meow/growl before the human voice speaks
+    // The voice waits for the cry to finish. If it started earlier, the cry would play over the first
+    // words while the jaw follows only the voice (and the cry's jaw burst), so the two drift apart.
+    let preambleMs = 0;
     if (severity === 'critical' || severity === 'error') {
-      this.playCatVocalization(options.soundEnabled, true, 0.85, voicePersona);
-      await this.waitMs(360, runId);
-      if (this.currentRunId !== runId) return;
+      preambleMs = this.playCatVocalization(options.soundEnabled, true, 0.85, voicePersona);
     } else if (options.voiceMode === 'both') {
-      this.playCatVocalization(options.soundEnabled, false, 0.7, voicePersona);
-      await this.waitMs(340, runId);
+      preambleMs = this.playCatVocalization(options.soundEnabled, false, 0.7, voicePersona);
+    }
+    if (preambleMs > 0) {
+      await this.waitMs(preambleMs, runId);
       if (this.currentRunId !== runId) return;
     }
+    // From here the jaw follows the voice alone.
+    this.manualRoarBurst = 0;
 
     const { syllables, chunkEndTimesMs, totalDurationMs } = buildMessageSyllableTimeline(chunks, {
       severity,
@@ -1732,7 +1746,7 @@ export class FelineSpeechEngine {
     activeChunk: MessageChunk | null;
   } {
     if (this.manualRoarBurst > 0) {
-      this.manualRoarBurst = Math.max(0, this.manualRoarBurst - dt * 1.4);
+      this.manualRoarBurst = Math.max(0, this.manualRoarBurst - dt * this.roarBurstDecayPerSec);
     }
 
     if (!this.isSpeaking || (this.timelineSyllables.length === 0 && !this.activeNeuralAlignment)) {

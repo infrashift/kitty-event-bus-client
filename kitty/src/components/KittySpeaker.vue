@@ -1460,9 +1460,12 @@ function drawCatNoseAndMouth(
   // 2. Monty Python Cutout Hinged Jaw & Exaggerated Teeth + Cat Tongue
   if (scream > 0.02) {
     const smoothTime = performance.now() * 0.006;
-    const modulator = props.laserAlertMode
-      ? Math.sin(Math.floor(performance.now() / 75) * 1.9) * 0.12
-      : Math.sin(smoothTime) * 0.03;
+    // The angry stepped jitter is for the silent laser scream only: while KITTY speaks, the jaw
+    // must follow her voice, and a 75ms wobble unrelated to it reads as lip-sync drift.
+    const modulator =
+      props.laserAlertMode && !speechEngine.isSpeaking
+        ? Math.sin(Math.floor(performance.now() / 75) * 1.9) * 0.12
+        : Math.sin(smoothTime) * 0.03;
     const openAmt = Math.max(0.04, Math.min(1.25, scream * (0.96 + modulator)));
 
     const seamY = y + ry * 0.16;

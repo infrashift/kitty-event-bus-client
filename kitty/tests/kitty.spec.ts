@@ -248,6 +248,43 @@ test.describe('kitty-event-bus-client', () => {
     }
   });
 
+  test('critical alert: the voice waits for the yowl, then the jaw follows the voice alone', async ({
+    page,
+  }) => {
+    await openKittyApp(page);
+    // Muted: the preamble and timeline still run, without the autoplay gate or real audio.
+    await page.locator('#soundToggleBtn').click();
+    await expect(page.locator('#soundIcon')).toHaveText('🔇');
+
+    const result = await page.evaluate(async () => {
+      const dbg = (window as any).__kittyDebug;
+      const engine = dbg.speechEngine;
+      const before = engine.speechStartPerf as number;
+      const t0 = performance.now();
+      dbg.speakEvent({
+        id: 'yowl-sync-test',
+        natsSubject: 'cncf.events.alerts.critical',
+        type: 'io.infrashift.test.critical',
+        source: '/tests/kitty',
+        severity: 'critical',
+        message: 'Critical test alert.',
+        time: new Date().toISOString(),
+      });
+      while (engine.speechStartPerf === before && performance.now() - t0 < 10_000) {
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      return {
+        voiceStartMs: (engine.speechStartPerf as number) - t0,
+        roarBurstAtVoiceStart: engine.manualRoarBurst as number,
+      };
+    });
+
+    // The critical yowl lasts ~0.98s. The voice used to start 360ms in, so the yowl played over
+    // the first words while the jaw followed the voice, and the yowl's jaw burst held it open.
+    expect(result.voiceStartMs, 'voice started while the yowl was still playing').toBeGreaterThan(950);
+    expect(result.roarBurstAtVoiceStart, 'yowl still holding the jaw open').toBe(0);
+  });
+
   test('muting while KITTY is speaking silences her right away; the bubble carries on', async ({
     page,
   }) => {
